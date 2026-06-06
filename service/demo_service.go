@@ -1,0 +1,25 @@
+package service
+
+import (
+	"sync"
+
+	"aa/ComputeEngine/logic"
+)
+
+var (
+	demoServiceInstance *DemoService
+	demoServiceOnce     sync.Once
+)
+
+type DemoService struct {
+	demoLogic *logic.DemoLogic
+}
+
+func NewDemoService(demoLogic *logic.DemoLogic) *DemoService {
+	demoServiceOnce.Do(func() {
+		demoServiceInstance = &DemoService{
+			demoLogic: demoLogic,
+		}
+	})
+	return demoServiceInstance
+}

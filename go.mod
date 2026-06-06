@@ -1,0 +1,13 @@
+module aa/ComputeEngine
+
+go 1.26.2
+
+require (
+	"aa/ComputeEngine/protocols"
+    github.com/google/uuid v1.6.0
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
+	go.yaml.in/yaml/v3 v3.0.4
+	golang.org/x/sys v0.45.0
+	google.golang.org/grpc v1.81.1
+)
