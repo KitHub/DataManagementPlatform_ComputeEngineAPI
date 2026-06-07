@@ -5,17 +5,19 @@ import (
 	"log/slog"
 	"sync"
 
-	"aa/ComputeEngine/config"
-	"aa/ComputeEngine/logic"
-	"aa/ComputeEngine/service"
-    "gopkg.in/natefinch/lumberjack.v2"
+	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/config"
+	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/dao"
+	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/logic"
+	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/service"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type ServiceContext struct {
-	Logger         *slog.Logger
-	ShutdownLogic  *logic.ShutdownLogic
-	ProjectLogic   *logic.ProjectLogic
-	ProjectService *service.ProjectService
+	Logger        *slog.Logger
+	ShutdownLogic *logic.ShutdownLogic
+	DemoLogic     *logic.DemoLogic
+	DemoService   *service.DemoService
+	PackageDAO    *dao.PackageDAO
 }
 
 var gServiceCtx *ServiceContext
@@ -34,14 +36,15 @@ func InitServiceContext(ctx context.Context, configEntity *config.ConfigEntity) 
 		}
 
 		shutdownLogic := logic.NewShutdownLogic()
-		projectLogic := logic.NewProjectLogic()
-		projectService := service.NewProjectService(projectLogic)
+		demoLogic := logic.NewDemoLogic()
+		demoService := service.NewDemoService(demoLogic)
 
 		gServiceCtx = &ServiceContext{
-			ShutdownLogic:  shutdownLogic,
-			ProjectLogic:   projectLogic,
-			ProjectService: projectService,
-			Logger:         logger,
+			ShutdownLogic: shutdownLogic,
+			DemoLogic:     demoLogic,
+			DemoService:   demoService,
+			PackageDAO:    dao.NewPackageDAO(),
+			Logger:        logger,
 		}
 	})
 

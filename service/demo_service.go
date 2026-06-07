@@ -3,7 +3,7 @@ package service
 import (
 	"sync"
 
-	"aa/ComputeEngine/logic"
+	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/logic"
 )
 
 var (
