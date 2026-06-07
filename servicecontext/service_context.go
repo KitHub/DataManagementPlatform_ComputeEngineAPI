@@ -4,20 +4,21 @@ import (
 	"context"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/config"
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/dao"
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/logic"
-	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/service"
 	"gopkg.in/natefinch/lumberjack.v2"
+	"xorm.io/xorm"
 )
 
 type ServiceContext struct {
 	Logger        *slog.Logger
+	DBEngine      *xorm.Engine
 	ShutdownLogic *logic.ShutdownLogic
-	DemoLogic     *logic.DemoLogic
-	DemoService   *service.DemoService
 	PackageDAO    *dao.PackageDAO
+	PackageLogic  *logic.PackageLogic
 }
 
 var gServiceCtx *ServiceContext
@@ -36,15 +37,21 @@ func InitServiceContext(ctx context.Context, configEntity *config.ConfigEntity) 
 		}
 
 		shutdownLogic := logic.NewShutdownLogic()
-		demoLogic := logic.NewDemoLogic()
-		demoService := service.NewDemoService(demoLogic)
+		dbEngine, innerErr := initDB(ctx, configEntity.DBConfig, shutdownLogic)
+		if innerErr != nil {
+			slog.ErrorContext(ctx, "init database failed", slog.Any("error", innerErr))
+			err = innerErr
+			return
+		}
+		packageDAO := dao.NewPackageDAO(ctx)
+		packageLogic := logic.NewPackageLogic(dbEngine, packageDAO)
 
 		gServiceCtx = &ServiceContext{
 			ShutdownLogic: shutdownLogic,
-			DemoLogic:     demoLogic,
-			DemoService:   demoService,
-			PackageDAO:    dao.NewPackageDAO(),
+			PackageDAO:    packageDAO,
+			PackageLogic:  packageLogic,
 			Logger:        logger,
+			DBEngine:      dbEngine,
 		}
 	})
 
@@ -65,6 +72,34 @@ func initLog(ctx context.Context, logConfig *config.LogConfigEntity) (
 	serviceLogger := slog.New(slog.NewTextHandler(log, nil))
 	slog.SetDefault(serviceLogger)
 	return serviceLogger, nil
+}
+
+func initDB(ctx context.Context, dbConfig *config.DBConfigEntity,
+	shutdownLogic *logic.ShutdownLogic) (*xorm.Engine, error) {
+	engine, err := xorm.NewEngine(dbConfig.DriverName, dbConfig.DataSourceName)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to initialize database connection",
+			slog.Any("error", err))
+		return nil, err
+	}
+
+	engine.SetMaxIdleConns(dbConfig.MaxIdleConns)
+	engine.SetMaxOpenConns(dbConfig.MaxOpenConns)
+	engine.SetConnMaxLifetime(
+		time.Duration(dbConfig.ConnMaxLifetime) * time.Second)
+
+	err = engine.PingContext(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to ping database", slog.Any("error", err))
+		return nil, err
+	}
+
+	shutdownLogic.RegisterShutdownCallback(func(ctx context.Context) error {
+		return engine.Close()
+	})
+
+	slog.InfoContext(ctx, "Database connection initialized successfully")
+	return engine, nil
 }
 
 func GetServiceContext() *ServiceContext {
