@@ -6,7 +6,8 @@ Create table package (
     description text,
     url varchar(255),
     platform varchar(255),
-    created_time datetime default current_timestamp,
-    updated_time datetime default current_timestamp on update current_timestamp,
+    register_time datetime default current_timestamp,
+    create_time datetime default current_timestamp,
+    update_time datetime default current_timestamp on update current_timestamp,
     uk_name unique (name)
 );

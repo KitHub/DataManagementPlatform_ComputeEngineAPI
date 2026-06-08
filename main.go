@@ -15,6 +15,7 @@ import (
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/config"
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/logic"
 	servicecontext "github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/servicecontext"
+	computeEngineAPIProtocol "github.com/KitHub/protocols/DataManagementPlatform_ComputeEngineAPI"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/genproto/googleapis/api/httpbody"
@@ -109,8 +110,7 @@ func initRpcServer(ctx context.Context, serverConfig *config.ServiceConfigEntity
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	)
 	// bind the service implementation to the gRPC server
-	projectgeneratorapi.RegisterProjectGeneratorAPIServer(
-		server, serviceContext.DemoService)
+	computeEngineAPIProtocol.RegisterComputeEngineAPIServer(server, serviceContext.ComputeEngineService)
 
 	go func() {
 		err := server.Serve(listener)
@@ -137,7 +137,7 @@ func initHttpServer(ctx context.Context, httpServerConfig *config.ServiceConfigE
 	grpcHostAndPort := fmt.Sprintf("%s:%d", grpcServerConfig.Host, grpcServerConfig.Port)
 	httpHostAndPort := fmt.Sprintf("%s:%d", httpServerConfig.Host, httpServerConfig.Port)
 	gateway := runtime.NewServeMux(runtime.WithForwardResponseOption(rspModifier))
-	err := projectgeneratorapi.RegisterProjectGeneratorAPIHandlerFromEndpoint(ctx, gateway, grpcHostAndPort, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())})
+	err := computeEngineAPIProtocol.RegisterComputeEngineAPIHandlerFromEndpoint(ctx, gateway, grpcHostAndPort, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())})
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to register http gateway", slog.String("error", err.Error()))
 		return nil, err

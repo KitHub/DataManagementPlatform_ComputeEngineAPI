@@ -34,12 +34,13 @@ func NewPackageLogic(dbEngine *xorm.Engine,
 func (logic *PackageLogic) InsertPackage(ctx context.Context, name string, description string, url string, platform string) (packageEntity *entity.PackageEntity, err error) {
 	now := time.Now()
 	packageEntity = &entity.PackageEntity{
-		Name:        name,
-		Description: description,
-		Url:         url,
-		Platform:    platform,
-		CreateTime:  now,
-		UpdateTime:  now,
+		Name:         name,
+		Description:  description,
+		Url:          url,
+		Platform:     platform,
+		RegisterTime: now,
+		CreateTime:   now,
+		UpdateTime:   now,
 	}
 	slog.InfoContext(ctx, "register package", slog.Any("package", packageEntity))
 

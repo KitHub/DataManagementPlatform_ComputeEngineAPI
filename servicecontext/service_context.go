@@ -9,16 +9,18 @@ import (
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/config"
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/dao"
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/logic"
+	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/service"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"xorm.io/xorm"
 )
 
 type ServiceContext struct {
-	Logger        *slog.Logger
-	DBEngine      *xorm.Engine
-	ShutdownLogic *logic.ShutdownLogic
-	PackageDAO    *dao.PackageDAO
-	PackageLogic  *logic.PackageLogic
+	Logger               *slog.Logger
+	DBEngine             *xorm.Engine
+	ShutdownLogic        *logic.ShutdownLogic
+	PackageDAO           *dao.PackageDAO
+	PackageLogic         *logic.PackageLogic
+	ComputeEngineService *service.ComputeEngineService
 }
 
 var gServiceCtx *ServiceContext
@@ -45,13 +47,15 @@ func InitServiceContext(ctx context.Context, configEntity *config.ConfigEntity) 
 		}
 		packageDAO := dao.NewPackageDAO(ctx)
 		packageLogic := logic.NewPackageLogic(dbEngine, packageDAO)
+		computeEngineService := service.NewComputeEngineService(packageLogic)
 
 		gServiceCtx = &ServiceContext{
-			ShutdownLogic: shutdownLogic,
-			PackageDAO:    packageDAO,
-			PackageLogic:  packageLogic,
-			Logger:        logger,
-			DBEngine:      dbEngine,
+			ShutdownLogic:        shutdownLogic,
+			PackageDAO:           packageDAO,
+			PackageLogic:         packageLogic,
+			ComputeEngineService: computeEngineService,
+			Logger:               logger,
+			DBEngine:             dbEngine,
 		}
 	})
 
