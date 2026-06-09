@@ -40,10 +40,17 @@ type TemplateConfigEntity struct {
 	TemplatesDir string `yaml:"templates_dir"` // 模板文件目录
 }
 
+type OSSConfigEntity struct {
+	OSSClientType      string `yaml:"oss_client_type"` // aliyun, tencent
+	OSSRegion          string `yaml:"oss_region"`
+	OSSAccessKeyId     string `yaml:"oss_access_key_id"`
+	OSSAccessKeySecret string `yaml:"oss_access_key_secret"`
+}
+
 type ConfigEntity struct {
-	LogConfig   *LogConfigEntity      `yaml:"log"`
-	DBConfig    *DBConfigEntity       `yaml:"db"`
-	Server      *ServerConfigEntity   `yaml:"server"`
-	TraceConfig *TraceConfigEntity    `yaml:"trace"`
-	Templates   *TemplateConfigEntity `yaml:"templates"`
+	LogConfig    *LogConfigEntity    `yaml:"log"`
+	DBConfig     *DBConfigEntity     `yaml:"db"`
+	ServerConfig *ServerConfigEntity `yaml:"server"`
+	TraceConfig  *TraceConfigEntity  `yaml:"trace"`
+	OSSConfig    *OSSConfigEntity    `yaml:"oss"`
 }

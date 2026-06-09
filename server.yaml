@@ -27,3 +27,9 @@ trace:
   exporter_endpoint: "localhost:4317" # OpenTelemetry Collector 的地址
   sampler_type: "parentbased_traceidratio" # 采样器类型（如 parentbased_traceidratio）
   sampler_arg: "0.1" # 采样器参数（如采样率）
+
+oss:
+  oss_client_type: "aliyun"
+  oss_region: "<region-id>"
+  oss_access_key_id: "<accessKeyID>"
+  oss_access_key_secret: "<accessKeySecret>"

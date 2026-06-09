@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/component"
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/config"
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/dao"
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/logic"
@@ -17,6 +18,7 @@ import (
 type ServiceContext struct {
 	Logger               *slog.Logger
 	DBEngine             *xorm.Engine
+	OSSClient            component.OSSComponent
 	ShutdownLogic        *logic.ShutdownLogic
 	PackageDAO           *dao.PackageDAO
 	PackageLogic         *logic.PackageLogic
@@ -48,6 +50,12 @@ func InitServiceContext(ctx context.Context, configEntity *config.ConfigEntity) 
 		packageDAO := dao.NewPackageDAO(ctx)
 		packageLogic := logic.NewPackageLogic(dbEngine, packageDAO)
 		computeEngineService := service.NewComputeEngineService(packageLogic)
+		ossClient, innerErr := initOSSClient(ctx, configEntity.OSSConfig)
+		if innerErr != nil {
+			slog.ErrorContext(ctx, "init oss client failed", slog.Any("error", innerErr))
+			err = innerErr
+			return
+		}
 
 		gServiceCtx = &ServiceContext{
 			ShutdownLogic:        shutdownLogic,
@@ -56,6 +64,7 @@ func InitServiceContext(ctx context.Context, configEntity *config.ConfigEntity) 
 			ComputeEngineService: computeEngineService,
 			Logger:               logger,
 			DBEngine:             dbEngine,
+			OSSClient:            ossClient,
 		}
 	})
 
@@ -104,6 +113,20 @@ func initDB(ctx context.Context, dbConfig *config.DBConfigEntity,
 
 	slog.InfoContext(ctx, "Database connection initialized successfully")
 	return engine, nil
+}
+
+func initOSSClient(ctx context.Context, config *config.OSSConfigEntity) (component.OSSComponent, error) {
+	slog.InfoContext(ctx, "init oss client", slog.Any("config", config))
+	switch config.OSSClientType {
+	case "aliyun":
+		client := component.NewAliyunOSSComponent(ctx, config.OSSAccessKeyId, config.OSSAccessKeySecret, config.OSSRegion)
+		return client, nil
+	case "tencent":
+		panic("not implemented")
+	default:
+		slog.ErrorContext(ctx, "unsupported oss client", slog.Any("type", config.OSSClientType))
+		return nil, nil
+	}
 }
 
 func GetServiceContext() *ServiceContext {
