@@ -31,7 +31,7 @@ func NewPackageLogic(dbEngine *xorm.Engine,
 	return packageLogicInstance
 }
 
-func (logic *PackageLogic) InsertPackage(ctx context.Context, name string, description string, url string, platform string) (packageEntity *entity.PackageEntity, err error) {
+func (logic *PackageLogic) InsertPackage(ctx context.Context, name string, description string, platform string, url string) (packageEntity *entity.PackageEntity, err error) {
 	now := time.Now()
 	packageEntity = &entity.PackageEntity{
 		Name:         name,
