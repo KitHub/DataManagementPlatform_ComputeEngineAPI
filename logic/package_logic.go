@@ -53,7 +53,7 @@ func (logic *PackageLogic) InsertPackage(ctx context.Context, name string, descr
 	return packageEntity, nil
 }
 
-func (logic *PackageLogic) QueryPackageById(ctx context.Context, packageID string) (packageEntity *entity.PackageEntity, err error) {
+func (logic *PackageLogic) QueryPackageById(ctx context.Context, packageID int64) (packageEntity *entity.PackageEntity, err error) {
 	slog.InfoContext(ctx, "query package", slog.Any("packageID", packageID))
 	packageEntity = &entity.PackageEntity{
 		ID: packageID,
@@ -67,7 +67,7 @@ func (logic *PackageLogic) QueryPackageById(ctx context.Context, packageID strin
 	return packageEntity, err
 }
 
-func (logic *PackageLogic) QueryPackageName(ctx context.Context, packageName string) (packageEntity *entity.PackageEntity, err error) {
+func (logic *PackageLogic) QueryPackageByName(ctx context.Context, packageName string) (packageEntity *entity.PackageEntity, err error) {
 	slog.InfoContext(ctx, "query package", slog.Any("packageName", packageName))
 	packageEntity = &entity.PackageEntity{
 		Name: packageName,
@@ -81,7 +81,7 @@ func (logic *PackageLogic) QueryPackageName(ctx context.Context, packageName str
 	return packageEntity, err
 }
 
-func (logic *PackageLogic) QueryPackageListByIdASC(ctx context.Context, packageID int64, limit int32) (packages []*entity.PackageEntity, err error) {
+func (logic *PackageLogic) QueryPackageListASCById(ctx context.Context, packageID int64, limit int32) (packages []*entity.PackageEntity, err error) {
 	slog.InfoContext(ctx, "query packages", slog.Any("packageID", packageID), slog.Any("limit", limit))
 	packages = make([]*entity.PackageEntity, 0)
 	err = wrapper.TransactionWrapper(ctx, logic.dbEngine,

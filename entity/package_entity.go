@@ -3,7 +3,7 @@ package entity
 import "time"
 
 type PackageEntity struct {
-	ID           string    `json:"id" xorm:"id,pk,autoincr"`
+	ID           int64     `json:"id" xorm:"id,pk,autoincr"`
 	Name         string    `json:"name" xorm:"name"`
 	Description  string    `json:"description" xorm:"description"`
 	Url          string    `json:"url" xorm:"url"`

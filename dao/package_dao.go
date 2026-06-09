@@ -47,15 +47,15 @@ func (dao *PackageDAO) InsertPackage(ctx context.Context,
 }
 
 func (dao *PackageDAO) QueryPackageById(ctx context.Context,
-	session *xorm.Session, packageID string) (*entity.PackageEntity, error) {
+	session *xorm.Session, packageID int64) (*entity.PackageEntity, error) {
 	packageEntity := &entity.PackageEntity{}
 	has, err := session.Where("id = ?", packageID).Get(packageEntity)
 	if err != nil {
-		slog.ErrorContext(ctx, "query package by id failed", slog.String("package_id", packageID), slog.Any("error", err))
+		slog.ErrorContext(ctx, "query package by id failed", slog.Int64("package_id", packageID), slog.Any("error", err))
 		return nil, err
 	}
 	if !has {
-		slog.InfoContext(ctx, "package not found", slog.String("package_id", packageID))
+		slog.InfoContext(ctx, "package not found", slog.Int64("package_id", packageID))
 		return nil, nil
 	}
 	slog.InfoContext(ctx, "package found", slog.Any("package", packageEntity))
