@@ -119,10 +119,11 @@ func initOSSClient(ctx context.Context, config *config.OSSConfigEntity) (compone
 	slog.InfoContext(ctx, "init oss client", slog.Any("config", config))
 	switch config.OSSClientType {
 	case "aliyun":
-		client := component.NewAliyunOSSComponent(ctx, config.OSSAccessKeyId, config.OSSAccessKeySecret, config.OSSRegion)
+		client := component.NewAliyunOSSComponent(ctx, config.AliyunOSSConfig.OSSAccessKeyId, config.AliyunOSSConfig.OSSAccessKeySecret, config.AliyunOSSConfig.OSSRegion)
 		return client, nil
 	case "tencent":
-		panic("not implemented")
+		client := component.NewTencentCOSComponent(ctx, config.TencentCSSConfig.COSSecretId, config.TencentCSSConfig.COSSecretKey, config.TencentCSSConfig.COSBucketUrl)
+		return client, nil
 	default:
 		slog.ErrorContext(ctx, "unsupported oss client", slog.Any("type", config.OSSClientType))
 		return nil, nil

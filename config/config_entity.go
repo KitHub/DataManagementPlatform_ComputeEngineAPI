@@ -40,11 +40,22 @@ type TemplateConfigEntity struct {
 	TemplatesDir string `yaml:"templates_dir"` // 模板文件目录
 }
 
-type OSSConfigEntity struct {
-	OSSClientType      string `yaml:"oss_client_type"` // aliyun, tencent
+type AliyunOSSConfigEntity struct {
 	OSSRegion          string `yaml:"oss_region"`
 	OSSAccessKeyId     string `yaml:"oss_access_key_id"`
 	OSSAccessKeySecret string `yaml:"oss_access_key_secret"`
+}
+
+type TencentCSSConfigEntity struct {
+	COSBucketUrl string `yaml:"cos_bucket_url"`
+	COSSecretId  string `yaml:"cos_secret_id"`
+	COSSecretKey string `yaml:"cos_secret_key"`
+}
+
+type OSSConfigEntity struct {
+	OSSClientType    string                  `yaml:"type"`
+	AliyunOSSConfig  *AliyunOSSConfigEntity  `yaml:"aliyun"`
+	TencentCSSConfig *TencentCSSConfigEntity `yaml:"tencent"`
 }
 
 type ConfigEntity struct {

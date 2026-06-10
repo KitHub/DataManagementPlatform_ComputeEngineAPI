@@ -39,7 +39,7 @@ func (a *AliyunOSSComponent) PutDataFromMemory(ctx context.Context, bucket strin
 		Body:   bytes.NewReader(content),
 	}
 	result, err := a.ossClient.PutObject(ctx, request)
-	slog.DebugContext(ctx, "put data to aliyun oss", slog.Any("result", result), slog.Any("error", err))
+	slog.InfoContext(ctx, "put data to aliyun oss", slog.Any("result", result), slog.Any("error", err))
 	if err != nil {
 		slog.ErrorContext(ctx, "put data to aliyun oss failed", slog.String("bucket", bucket), slog.String("key", key), slog.Any("error", err))
 		return err
@@ -62,7 +62,7 @@ func (a *AliyunOSSComponent) PutDataFromFile(ctx context.Context, bucket string,
 		Key:    &key,
 	}
 	result, err := a.ossClient.PutObjectFromFile(ctx, request, contentFilePath)
-	slog.DebugContext(ctx, "put data to aliyun oss", slog.Any("result", result), slog.Any("error", err))
+	slog.InfoContext(ctx, "put data to aliyun oss", slog.Any("result", result), slog.Any("error", err))
 	if err != nil {
 		slog.ErrorContext(ctx, "put data to aliyun oss failed", slog.String("bucket", bucket), slog.String("key", key), slog.String("contentFile", contentFilePath), slog.Any("error", err))
 		return err
@@ -86,7 +86,7 @@ func (a *AliyunOSSComponent) GetDataToMemory(ctx context.Context, bucket string,
 	}
 
 	result, err := a.ossClient.GetObject(ctx, request)
-	slog.DebugContext(ctx, "put data to aliyun oss", slog.Any("result", result), slog.Any("error", err))
+	slog.InfoContext(ctx, "put data to aliyun oss", slog.Any("result", result), slog.Any("error", err))
 	if err != nil {
 		slog.InfoContext(ctx, "get data from aliyun oss failed", slog.String("bucket", bucket), slog.String("key", key), slog.Any("error", err))
 		return nil, err
@@ -122,7 +122,7 @@ func (a *AliyunOSSComponent) GetDataToFile(ctx context.Context, bucket string, k
 	}
 
 	result, err := a.ossClient.GetObjectToFile(ctx, request, contentFilePath)
-	slog.DebugContext(ctx, "put data to aliyun oss", slog.Any("result", result), slog.String("contentFile", contentFilePath), slog.Any("error", err))
+	slog.InfoContext(ctx, "put data to aliyun oss", slog.Any("result", result), slog.String("contentFile", contentFilePath), slog.Any("error", err))
 	if err != nil {
 		slog.InfoContext(ctx, "get data from aliyun oss failed", slog.String("bucket", bucket), slog.String("key", key), slog.String("contentFile", contentFilePath), slog.Any("error", err))
 		return err

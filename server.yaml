@@ -29,7 +29,12 @@ trace:
   sampler_arg: "0.1" # 采样器参数（如采样率）
 
 oss:
-  oss_client_type: "aliyun"
-  oss_region: "<region-id>"
-  oss_access_key_id: "<accessKeyID>"
-  oss_access_key_secret: "<accessKeySecret>"
+  type: "aliyun" # aliyun or tencent
+  aliyun:
+    oss_region: "<region-id>"
+    oss_access_key_id: "<accessKeyID>"
+    oss_access_key_secret: "<accessKeySecret>"
+  tencent:
+    cos_bucket_url: "<url>"
+    cos_secret_id: "<secretId>"
+    cos_secret_key: "<secretKey>"
