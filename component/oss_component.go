@@ -3,6 +3,8 @@ package component
 import "context"
 
 type OSSComponent interface {
-	PutData(ctx context.Context, bucket string, key string, content []byte) error
-	GetData(ctx context.Context, bucket string, key string) ([]byte, error)
+	PutDataFromFile(ctx context.Context, bucket string, key string, contentFilePath string) error
+	PutDataFromMemory(ctx context.Context, bucket string, key string, content []byte) error
+	GetDataToFile(ctx context.Context, bucket string, key string, contentFilePath string) error
+	GetDataToMemory(ctx context.Context, bucket string, key string) ([]byte, error)
 }
