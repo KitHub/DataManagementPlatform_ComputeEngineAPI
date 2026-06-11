@@ -11,6 +11,6 @@ Create table package (
     register_time datetime default current_timestamp,
     create_time datetime default current_timestamp,
     update_time datetime default current_timestamp on update current_timestamp,
-    uk_name unique (name)
+    uk_origin_id unique (origin_id)
 );
 
