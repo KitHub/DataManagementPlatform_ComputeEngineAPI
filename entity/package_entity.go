@@ -4,10 +4,12 @@ import "time"
 
 type PackageEntity struct {
 	ID           int64     `json:"id" xorm:"id,pk,autoincr"`
-	Name         string    `json:"name" xorm:"name"`
-	Description  string    `json:"description" xorm:"description"`
-	Url          string    `json:"url" xorm:"url"`
+	OriginId     string    `json:"origin_id" xorm:"origin_id"`
+	DisplayName  string    `json:"display_name" xorm:"display_name"`
+	Comment      string    `json:"comment" xorm:"comment"`
 	Platform     string    `json:"platform" xorm:"platform"`
+	BucketName   string    `json:"bucket_name" xorm:"bucket_name"`
+	KeyName      string    `json:"key_name" xorm:"key_name"`
 	RegisterTime time.Time `json:"register_time" xorm:"register_time"`
 	CreateTime   time.Time `json:"create_time" xorm:"create_time"`
 	UpdateTime   time.Time `json:"update_time" xorm:"update_time"`

@@ -50,9 +50,9 @@ func (c *ComputeEngineService) GetPackageById(ctx context.Context, req *computeE
 	return rsp, nil
 }
 
-// GetPackageByName implements [DataManagementPlatform_ComputeEngineAPI.ComputeEngineAPIServer].
-func (c *ComputeEngineService) GetPackageByName(ctx context.Context, req *computeEngineAPIProtocol.GetPackageByNameRequest) (rsp *computeEngineAPIProtocol.GetPackageByNameResponse, err error) {
-	slog.InfoContext(ctx, "GetPackageByName", slog.Any("package_name", req.GetName()))
+// GetPackageByOriginId implements [DataManagementPlatform_ComputeEngineAPI.ComputeEngineAPIServer].
+func (c *ComputeEngineService) GetPackageByOriginId(ctx context.Context, req *computeEngineAPIProtocol.GetPackageByOriginIdRequest) (rsp *computeEngineAPIProtocol.GetPackageByOriginIdResponse, err error) {
+	slog.InfoContext(ctx, "GetPackageByName", slog.Any("originId", req.GetOriginId()))
 	err = req.Validate()
 	if err != nil {
 		errMsg := "invalid request parameters: " + err.Error()
@@ -60,16 +60,16 @@ func (c *ComputeEngineService) GetPackageByName(ctx context.Context, req *comput
 		return nil, status.Errorf(codes.InvalidArgument, "invalid request parameters")
 	}
 
-	packageEntity, err := c.packageLogic.QueryPackageByName(ctx, req.GetName())
+	packageEntity, err := c.packageLogic.QueryPackageByOriginId(ctx, req.GetOriginId())
 	if err != nil {
 		slog.ErrorContext(ctx, "queryPackageById failed", slog.Any("err", err))
 		return nil, status.Errorf(codes.Internal, "server error")
 	}
 
-	rsp = &computeEngineAPIProtocol.GetPackageByNameResponse{
+	rsp = &computeEngineAPIProtocol.GetPackageByOriginIdResponse{
 		ErrCode: 0,
 		ErrMsg:  "ok",
-		Data: &computeEngineAPIProtocol.GetPackageByNameResponseData{
+		Data: &computeEngineAPIProtocol.GetPackageByOriginIdResponseData{
 			PackageInfo: convertPackageEntityToBasicPackageInfo(ctx, packageEntity),
 		},
 	}
@@ -140,10 +140,11 @@ func convertPackageEntityToBasicPackageInfo(ctx context.Context, packageEntity *
 
 	packageInfo := &computeEngineAPIProtocol.BasicPackageInfo{
 		Id:           packageEntity.ID,
-		Name:         packageEntity.Name,
-		Description:  packageEntity.Description,
+		OriginId:     packageEntity.OriginId,
+		Comment:      packageEntity.Comment,
 		Platform:     packageEntity.Platform,
-		Url:          packageEntity.Url,
+		BucketName:   packageEntity.BucketName,
+		KeyName:      packageEntity.KeyName,
 		RegisterTime: packageEntity.RegisterTime.UnixMilli(),
 	}
 	return packageInfo

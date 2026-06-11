@@ -47,31 +47,31 @@ func (dao *PackageDAO) InsertPackage(ctx context.Context,
 }
 
 func (dao *PackageDAO) QueryPackageById(ctx context.Context,
-	session *xorm.Session, packageID int64) (*entity.PackageEntity, error) {
+	session *xorm.Session, id int64) (*entity.PackageEntity, error) {
 	packageEntity := &entity.PackageEntity{}
-	has, err := session.Where("id = ?", packageID).Get(packageEntity)
+	has, err := session.Where("id = ?", id).Get(packageEntity)
 	if err != nil {
-		slog.ErrorContext(ctx, "query package by id failed", slog.Int64("package_id", packageID), slog.Any("error", err))
+		slog.ErrorContext(ctx, "query package by id failed", slog.Int64("package_id", id), slog.Any("error", err))
 		return nil, err
 	}
 	if !has {
-		slog.InfoContext(ctx, "package not found", slog.Int64("package_id", packageID))
+		slog.InfoContext(ctx, "package not found", slog.Int64("package_id", id))
 		return nil, nil
 	}
 	slog.InfoContext(ctx, "package found", slog.Any("package", packageEntity))
 	return packageEntity, nil
 }
 
-func (dao *PackageDAO) QueryPackageByName(ctx context.Context,
-	session *xorm.Session, packageName string) (*entity.PackageEntity, error) {
+func (dao *PackageDAO) QueryPackageByOriginId(ctx context.Context,
+	session *xorm.Session, originId string) (*entity.PackageEntity, error) {
 	packageEntity := &entity.PackageEntity{}
-	has, err := session.Where("name = ?", packageName).Get(packageEntity)
+	has, err := session.Where("origin_id = ?", originId).Get(packageEntity)
 	if err != nil {
-		slog.ErrorContext(ctx, "query package by name failed", slog.String("package_name", packageName), slog.Any("error", err))
+		slog.ErrorContext(ctx, "query package by id failed", slog.String("origin_id", originId), slog.Any("error", err))
 		return nil, err
 	}
 	if !has {
-		slog.InfoContext(ctx, "package not found", slog.String("package_name", packageName))
+		slog.InfoContext(ctx, "package not found", slog.String("origin_id", originId))
 		return nil, nil
 	}
 	slog.InfoContext(ctx, "package found", slog.Any("package", packageEntity))
