@@ -48,14 +48,14 @@ func InitServiceContext(ctx context.Context, configEntity *config.ConfigEntity) 
 			return
 		}
 		packageDAO := dao.NewPackageDAO(ctx)
-		packageLogic := logic.NewPackageLogic(dbEngine, packageDAO)
-		computeEngineService := service.NewComputeEngineService(packageLogic)
 		ossClient, innerErr := initOSSClient(ctx, configEntity.OSSConfig)
 		if innerErr != nil {
 			slog.ErrorContext(ctx, "init oss client failed", slog.Any("error", innerErr))
 			err = innerErr
 			return
 		}
+		packageLogic := logic.NewPackageLogic(dbEngine, packageDAO, ossClient)
+		computeEngineService := service.NewComputeEngineService(packageLogic)
 
 		gServiceCtx = &ServiceContext{
 			ShutdownLogic:        shutdownLogic,

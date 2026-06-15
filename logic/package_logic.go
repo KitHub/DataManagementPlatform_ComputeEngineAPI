@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/component"
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/dao"
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/entity"
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/wrapper"
@@ -18,10 +19,11 @@ var onceForPackageLogicInstance sync.Once = sync.Once{}
 type PackageLogic struct {
 	dbEngine   *xorm.Engine
 	packageDAO *dao.PackageDAO
+	ossClient  component.OSSComponent
 }
 
 func NewPackageLogic(dbEngine *xorm.Engine,
-	packageDAO *dao.PackageDAO) *PackageLogic {
+	packageDAO *dao.PackageDAO, ossClient component.OSSComponent) *PackageLogic {
 	onceForPackageLogicInstance.Do(func() {
 		packageLogicInstance = &PackageLogic{
 			dbEngine:   dbEngine,
@@ -29,6 +31,17 @@ func NewPackageLogic(dbEngine *xorm.Engine,
 		}
 	})
 	return packageLogicInstance
+}
+
+func (logic *PackageLogic) UploadPackage(ctx context.Context, bucketName string, keyName string, content []byte) error {
+	slog.InfoContext(ctx, "upload file", slog.String("bucketName", bucketName), slog.String("keyName", keyName))
+	err := logic.ossClient.PutDataFromMemory(ctx, bucketName, keyName, content)
+	if err != nil {
+		slog.ErrorContext(ctx, "upload file failed", slog.String("bucketName", bucketName), slog.String("keyName", keyName))
+		return err
+	}
+	slog.InfoContext(ctx, "upload file done", slog.String("bucketName", bucketName), slog.String("keyName", keyName))
+	return nil
 }
 
 func (logic *PackageLogic) InsertPackage(ctx context.Context, originId string, comment string, platform string, bucketName string, keyName string) (packageEntity *entity.PackageEntity, err error) {

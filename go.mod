@@ -3,7 +3,7 @@ module github.com/KitHub/DataManagementPlatform_ComputeEngineAPI
 go 1.26.2
 
 require (
-	github.com/KitHub/protocols v0.1.25
+	github.com/KitHub/protocols v0.1.27
 	github.com/aliyun/alibabacloud-oss-go-sdk-v2 v1.5.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.73

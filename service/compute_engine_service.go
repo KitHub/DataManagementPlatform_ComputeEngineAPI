@@ -22,6 +22,52 @@ type ComputeEngineService struct {
 	packageLogic *logic.PackageLogic
 }
 
+// UploadPackage implements [DataManagementPlatform_ComputeEngineAPI.ComputeEngineAPIServer].
+func (c *ComputeEngineService) UploadPackage(ctx context.Context, req *computeEngineAPIProtocol.UploadPackageRequest) (rsp *computeEngineAPIProtocol.UploadPackageResponse, err error) {
+	slog.InfoContext(ctx, "UploadPackage", slog.Any("package_info", req))
+	err = req.Validate()
+	if err != nil {
+		errMsg := "invalid request parameters: " + err.Error()
+		slog.ErrorContext(ctx, errMsg, slog.Any("request", req.String()))
+		return nil, status.Errorf(codes.InvalidArgument, "invalid request parameters")
+	}
+
+	packageEntity, err := c.packageLogic.QueryPackageByOriginId(ctx, req.GetOriginId())
+	if err != nil {
+		slog.ErrorContext(ctx, "queryPackageById failed", slog.Any("err", err))
+		return nil, status.Error(codes.Internal, "server error")
+	}
+
+	if packageEntity != nil {
+		errMsg := "package with the same origin_id existed"
+		slog.ErrorContext(ctx, errMsg, slog.String("origin_id", req.GetOriginId()))
+		return nil, status.Error(codes.AlreadyExists, errMsg)
+	}
+
+	err = c.packageLogic.UploadPackage(ctx, req.GetBucketName(), req.GetKeyName(), req.GetPackageFile())
+	if err != nil {
+		slog.ErrorContext(ctx, "upload package failed", slog.String("bucket_name", req.GetBucketName()), slog.String("key_name", req.GetKeyName()))
+		return nil, status.Error(codes.Internal, "server error")
+	}
+
+	newPackageEntity, err := c.packageLogic.InsertPackage(ctx, req.GetOriginId(), req.GetComment(), req.GetPlatform(), req.GetBucketName(), req.GetKeyName())
+	if err != nil {
+		slog.ErrorContext(ctx, "insert package failed", slog.Any("req", req))
+		return nil, status.Error(codes.Internal, "server error")
+	}
+
+	rsp = &computeEngineAPIProtocol.UploadPackageResponse{
+		ErrCode: 0,
+		ErrMsg:  "ok",
+		Data: &computeEngineAPIProtocol.UploadPackageResponseData{
+			PackageInfo: convertPackageEntityToBasicPackageInfo(ctx, newPackageEntity),
+		},
+	}
+
+	slog.InfoContext(ctx, "GetPackageById", slog.Any("req", req), slog.Any("rsp", rsp))
+	return rsp, nil
+}
+
 // GetPackageById implements [DataManagementPlatform_ComputeEngineAPI.ComputeEngineAPIServer].
 func (c *ComputeEngineService) GetPackageById(ctx context.Context, req *computeEngineAPIProtocol.GetPackageByIdRequest) (rsp *computeEngineAPIProtocol.GetPackageByIdResponse, err error) {
 	slog.InfoContext(ctx, "GetPackageById", slog.Any("package_id", req.GetPackageId()))
@@ -120,7 +166,29 @@ func (c *ComputeEngineService) RegisterPackage(ctx context.Context, req *compute
 		return nil, status.Errorf(codes.InvalidArgument, "invalid request parameters")
 	}
 
-	rsp = &computeEngineAPIProtocol.RegisterPackageResponse{}
+	packageEntity := &entity.PackageEntity{
+		OriginId:   req.GetOriginId(),
+		Comment:    req.GetComment(),
+		Platform:   req.GetPlatform(),
+		BucketName: req.GetBucketName(),
+		KeyName:    req.GetKeyName(),
+	}
+
+	packageEntity, err = c.packageLogic.InsertPackage(ctx, packageEntity.OriginId, packageEntity.Comment, packageEntity.Platform, packageEntity.BucketName, packageEntity.KeyName)
+	if err != nil {
+		slog.ErrorContext(ctx, "insert package info failed", slog.Any("packageEntity", packageEntity), slog.Any("error", err))
+		return nil, status.Errorf(codes.Internal, "server error")
+	}
+
+	rsp = &computeEngineAPIProtocol.RegisterPackageResponse{
+		ErrCode: 0,
+		ErrMsg:  "ok",
+		Data: &computeEngineAPIProtocol.RegisterPackageResponseData{
+			PackageInfo: convertPackageEntityToBasicPackageInfo(ctx, packageEntity),
+		},
+	}
+
+	slog.InfoContext(ctx, "RegisterPackage", slog.Any("req", req), slog.Any("rsp", rsp))
 	return rsp, nil
 }
 
