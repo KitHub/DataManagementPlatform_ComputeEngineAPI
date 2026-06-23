@@ -20,7 +20,7 @@ type ServiceContext struct {
 	DBEngine             *xorm.Engine
 	OSSClient            component.OSSComponent
 	CronComponent        *component.CronComponent
-	ShutdownLogic        *logic.ShutdownLogic
+	ShutdownComponent    *component.ShutdownComponent
 	PackageDAO           *dao.PackageDAO
 	PackageLogic         *logic.PackageLogic
 	ComputeEngineService *service.ComputeEngineService
@@ -41,10 +41,10 @@ func InitServiceContext(ctx context.Context, configEntity *config.ConfigEntity) 
 			return
 		}
 
-		cronComponent := component.NewCronConponent()
+		cronComponent := component.NewCronConponent(ctx)
 
-		shutdownLogic := logic.NewShutdownLogic()
-		dbEngine, innerErr := initDB(ctx, configEntity.DBConfig, shutdownLogic)
+		shutdownComponent := component.NewShutdownComponent(ctx)
+		dbEngine, innerErr := initDB(ctx, configEntity.DBConfig, shutdownComponent)
 		if innerErr != nil {
 			slog.ErrorContext(ctx, "init database failed", slog.Any("error", innerErr))
 			err = innerErr
@@ -61,7 +61,7 @@ func InitServiceContext(ctx context.Context, configEntity *config.ConfigEntity) 
 		computeEngineService := service.NewComputeEngineService(packageLogic)
 
 		gServiceCtx = &ServiceContext{
-			ShutdownLogic:        shutdownLogic,
+			ShutdownComponent:    shutdownComponent,
 			PackageDAO:           packageDAO,
 			PackageLogic:         packageLogic,
 			ComputeEngineService: computeEngineService,
@@ -92,7 +92,7 @@ func initLog(ctx context.Context, logConfig *config.LogConfigEntity) (
 }
 
 func initDB(ctx context.Context, dbConfig *config.DBConfigEntity,
-	shutdownLogic *logic.ShutdownLogic) (*xorm.Engine, error) {
+	shutdownComponent *component.ShutdownComponent) (*xorm.Engine, error) {
 	engine, err := xorm.NewEngine(dbConfig.DriverName, dbConfig.DataSourceName)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to initialize database connection",
@@ -111,7 +111,7 @@ func initDB(ctx context.Context, dbConfig *config.DBConfigEntity,
 		return nil, err
 	}
 
-	shutdownLogic.RegisterShutdownCallback(func(ctx context.Context) error {
+	shutdownComponent.RegisterShutdownCallback(func(ctx context.Context) error {
 		return engine.Close()
 	})
 
