@@ -116,7 +116,7 @@ func (logic *ComputeLogic) loadPackageToBitmap(ctx context.Context, packageEntit
 
 	{
 		localBitmapFile := logic.computeConfig.LocalBitmapDir + "/" + packageEntity.OriginId + ".bitmap." + strconv.FormatInt(packageEntity.DataVersion, 10)
-		err = serializeBitMapToLocalFile(ctx, bitmap, localBitmapFile)
+		_, err = serializeBitMapToLocalFile(ctx, bitmap, localBitmapFile)
 		if err != nil {
 			slog.ErrorContext(ctx, "serialize bitmap to local file failed", slog.String("packageFile", tmpPackageFilePath), slog.Any("error", err))
 			return nil, err
@@ -133,7 +133,18 @@ func idMappingContentToId(ctx context.Context, content string) (int64, error) {
 	panic("not implmented")
 }
 
-func serializeBitMapToLocalFile(ctx context.Context, bitmap *roaring64.Bitmap, filePath string) error {
-	// todo, add implmentation
-	panic("not implmented")
+func serializeBitMapToLocalFile(ctx context.Context, bitmap *roaring64.Bitmap, filePath string) (bytesCount int64, err error) {
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		slog.ErrorContext(ctx, "open/create local bitmap file failed ", slog.String("localBitmapFile", filePath), slog.Any("error", err))
+		return 0, err
+	}
+	count, err := bitmap.WriteTo(file)
+	if err != nil {
+		slog.ErrorContext(ctx, "write local bitmap file failed ", slog.String("localBitmapFile", filePath), slog.Any("error", err))
+		return 0, err
+	}
+
+	slog.InfoContext(ctx, "serialize bitmap done", slog.String("localBitmapFile", filePath), slog.Any("bytesCount", count))
+	return count, nil
 }
