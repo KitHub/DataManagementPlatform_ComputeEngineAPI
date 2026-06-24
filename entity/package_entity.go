@@ -10,6 +10,7 @@ type PackageEntity struct {
 	Platform     string    `json:"platform" xorm:"platform"`
 	BucketName   string    `json:"bucket_name" xorm:"bucket_name"`
 	KeyName      string    `json:"key_name" xorm:"key_name"`
+	DataVersion  int64     `json:"data_version" xorm:"data_version"`
 	RegisterTime time.Time `json:"register_time" xorm:"register_time"`
 	CreateTime   time.Time `json:"create_time" xorm:"create_time"`
 	UpdateTime   time.Time `json:"update_time" xorm:"update_time"`

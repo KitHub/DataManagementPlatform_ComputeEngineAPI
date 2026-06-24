@@ -17,19 +17,27 @@ var packageLogicInstance *PackageLogic
 var onceForPackageLogicInstance sync.Once = sync.Once{}
 
 type PackageLogic struct {
-	dbEngine   *xorm.Engine
-	packageDAO *dao.PackageDAO
-	ossClient  component.OSSComponent
+	dbEngine      *xorm.Engine
+	packageDAO    *dao.PackageDAO
+	ossClient     component.OSSComponent
+	initComponent *component.InitComponent
 }
 
-func NewPackageLogic(dbEngine *xorm.Engine,
-	packageDAO *dao.PackageDAO, ossClient component.OSSComponent) *PackageLogic {
+func NewPackageLogic(ctx context.Context, dbEngine *xorm.Engine,
+	packageDAO *dao.PackageDAO, ossClient component.OSSComponent, initComponent *component.InitComponent) *PackageLogic {
 	onceForPackageLogicInstance.Do(func() {
 		packageLogicInstance = &PackageLogic{
-			dbEngine:   dbEngine,
-			packageDAO: packageDAO,
+			dbEngine:      dbEngine,
+			packageDAO:    packageDAO,
+			ossClient:     ossClient,
+			initComponent: initComponent,
 		}
 	})
+
+	initComponent.RegisterInitCallback(func(ctx context.Context) error {
+		return packageLogicInstance.PreparePackages(ctx)
+	})
+
 	return packageLogicInstance
 }
 
@@ -105,4 +113,25 @@ func (logic *PackageLogic) QueryPackageListASCById(ctx context.Context, id int64
 		})
 	slog.InfoContext(ctx, "query package success", slog.Any("packages", packages))
 	return packages, err
+}
+
+func (logic *PackageLogic) PreparePackages(ctx context.Context) error {
+	var tmpId int64 = -1
+	var packages []*entity.PackageEntity = nil
+
+	for {
+		tmpPackages, err := logic.QueryPackageListASCById(ctx, tmpId, 10)
+		if err != nil {
+			slog.ErrorContext(ctx, "load packages failed", slog.Any("lastId", tmpId))
+			return err
+		}
+		if len(tmpPackages) == 0 {
+			slog.InfoContext(ctx, "query packages done", slog.Any("packagesCount", len(packages)))
+			break
+		}
+		packages = append(packages, tmpPackages...)
+		tmpId = tmpPackages[len(tmpPackages)-1].ID
+	}
+
+	return nil
 }

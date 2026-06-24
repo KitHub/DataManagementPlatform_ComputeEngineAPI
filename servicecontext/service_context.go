@@ -20,6 +20,7 @@ type ServiceContext struct {
 	DBEngine             *xorm.Engine
 	OSSClient            component.OSSComponent
 	CronComponent        *component.CronComponent
+	InitComponent        *component.InitComponent
 	ShutdownComponent    *component.ShutdownComponent
 	PackageDAO           *dao.PackageDAO
 	PackageLogic         *logic.PackageLogic
@@ -42,7 +43,7 @@ func InitServiceContext(ctx context.Context, configEntity *config.ConfigEntity) 
 		}
 
 		cronComponent := component.NewCronConponent(ctx)
-
+		initComponent := component.NewInitComponent(ctx)
 		shutdownComponent := component.NewShutdownComponent(ctx)
 		dbEngine, innerErr := initDB(ctx, configEntity.DBConfig, shutdownComponent)
 		if innerErr != nil {
@@ -57,11 +58,12 @@ func InitServiceContext(ctx context.Context, configEntity *config.ConfigEntity) 
 			err = innerErr
 			return
 		}
-		packageLogic := logic.NewPackageLogic(dbEngine, packageDAO, ossClient)
+		packageLogic := logic.NewPackageLogic(ctx, dbEngine, packageDAO, ossClient, initComponent)
 		computeEngineService := service.NewComputeEngineService(packageLogic)
 
 		gServiceCtx = &ServiceContext{
 			ShutdownComponent:    shutdownComponent,
+			InitComponent:        initComponent,
 			PackageDAO:           packageDAO,
 			PackageLogic:         packageLogic,
 			ComputeEngineService: computeEngineService,

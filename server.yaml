@@ -38,3 +38,6 @@ oss:
     cos_bucket_url: "<url>"
     cos_secret_id: "<secretId>"
     cos_secret_key: "<secretKey>"
+
+compute:
+  local_bitmap_dir: "./data/bitmap"

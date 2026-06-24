@@ -58,10 +58,15 @@ type OSSConfigEntity struct {
 	TencentCSSConfig *TencentCSSConfigEntity `yaml:"tencent"`
 }
 
+type ComputeConfigEntity struct {
+	LocalBitmapDir string `yaml:"local_bitmap_dir"`
+}
+
 type ConfigEntity struct {
-	LogConfig    *LogConfigEntity    `yaml:"log"`
-	DBConfig     *DBConfigEntity     `yaml:"db"`
-	ServerConfig *ServerConfigEntity `yaml:"server"`
-	TraceConfig  *TraceConfigEntity  `yaml:"trace"`
-	OSSConfig    *OSSConfigEntity    `yaml:"oss"`
+	LogConfig     *LogConfigEntity     `yaml:"log"`
+	DBConfig      *DBConfigEntity      `yaml:"db"`
+	ServerConfig  *ServerConfigEntity  `yaml:"server"`
+	TraceConfig   *TraceConfigEntity   `yaml:"trace"`
+	OSSConfig     *OSSConfigEntity     `yaml:"oss"`
+	ComputeConfig *ComputeConfigEntity `yaml:"compute"`
 }
