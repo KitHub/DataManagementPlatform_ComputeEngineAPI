@@ -84,7 +84,7 @@ func (logic *ComputeLogic) loadPackageToBitmap(ctx context.Context, packageEntit
 		return nil, err
 	}
 
-	var bitmap *roaring64.Bitmap = roaring64.New()
+	bitmap := roaring64.New()
 	{
 		tmpPackageFile, err := os.Open(tmpPackageFilePath)
 		if err != nil {
