@@ -116,7 +116,7 @@ func NewComputeLogic(ctx context.Context, computeConfig *config.ComputeConfigEnt
 func (logic *ComputeLogic) ReloadPackage(ctx context.Context, packageEntity *entity.PackageEntity, forceReloadFromOSS bool) error {
 	slog.InfoContext(ctx, "start reloading package", slog.Any("packageEntity", packageEntity))
 
-	bitmap, err := loadPackage(ctx, packageEntity, logic.computeConfig.LocalBitmapDir, logic.packageLogic.ossClient, forceReloadFromOSS)
+	bitmap, err := loadPackage(ctx, packageEntity, logic.computeConfig.LocalBitmapDir, logic.deviceManagementPlatformAPIClient, logic.packageLogic.ossClient, forceReloadFromOSS)
 	if err != nil {
 		slog.ErrorContext(ctx, "force reloading package failed", slog.String("packageOriginId", packageEntity.OriginId), slog.Any("error", err))
 		return err
@@ -225,7 +225,7 @@ func decomposeBitmapLocalFileName(ctx context.Context, name string) (packageOrig
 	return parts[0], parts[2], nil
 }
 
-func loadBitmapFromOSS(ctx context.Context, packageEntity *entity.PackageEntity, ossClient component.OSSComponent) (*roaring64.Bitmap, error) {
+func loadBitmapFromOSS(ctx context.Context, packageEntity *entity.PackageEntity, ossClient component.OSSComponent, deviceManagementPlatformAPIClient devicemanagementplatformapi.DeviceManagementPlatformAPIClient) (*roaring64.Bitmap, error) {
 	tmpPackageFileName := "bitmap-" + packageEntity.OriginId + "-*"
 	tmpPackageFilePath, err := os.MkdirTemp("", tmpPackageFileName)
 	if err != nil {
@@ -263,7 +263,7 @@ func loadBitmapFromOSS(ctx context.Context, packageEntity *entity.PackageEntity,
 			lineNo++
 			content := scanner.Text()
 			// idmapping, deviceNo to deviceId
-			tmpContentId, err := idMappingContentToId(ctx, content)
+			tmpContentId, err := idMappingContentToId(ctx, deviceManagementPlatformAPIClient, content)
 			if err != nil {
 				slog.ErrorContext(ctx, "idmapping content2Id failed", slog.String("content", content), slog.Any("error", err))
 				return nil, err
@@ -306,7 +306,7 @@ func loadBitmapFromLocalFile(ctx context.Context, bitmapLocalFilePath string) (*
 
 // loadPackage, load pacakge, if the bitmap local file existed and not expired, load bitmap from local file
 // forceReloadFromOSS, if it is true, reload from oss, skipping local file
-func loadPackage(ctx context.Context, targetPacakgeEntity *entity.PackageEntity, bitmapLocalFileDir string, ossClient component.OSSComponent, forceReloadFromOSS bool) (*roaring64.Bitmap, error) {
+func loadPackage(ctx context.Context, targetPacakgeEntity *entity.PackageEntity, bitmapLocalFileDir string, deviceManagementPlatformAPIClient devicemanagementplatformapi.DeviceManagementPlatformAPIClient, ossClient component.OSSComponent, forceReloadFromOSS bool) (*roaring64.Bitmap, error) {
 	bitmapLocalFilePath := composeBitmapLocalFilePath(ctx, bitmapLocalFileDir, targetPacakgeEntity)
 
 	var retval *roaring64.Bitmap
@@ -320,7 +320,7 @@ func loadPackage(ctx context.Context, targetPacakgeEntity *entity.PackageEntity,
 	}
 
 	// load bitmap from oss, and write content to local file
-	retval, err := loadBitmapFromOSS(ctx, targetPacakgeEntity, ossClient)
+	retval, err := loadBitmapFromOSS(ctx, targetPacakgeEntity, ossClient, deviceManagementPlatformAPIClient)
 	return retval, err
 }
 
