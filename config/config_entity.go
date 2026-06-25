@@ -62,9 +62,19 @@ type ComputeConfigEntity struct {
 	LocalBitmapDir string `yaml:"local_bitmap_dir"`
 }
 
+type ClientConfigEntity struct {
+	Addr                   string `yaml:"addr"`
+	TimemoutInMilliSeconds int32  `yaml:"timeout_in_milliseconds"`
+}
+
+type ClientsConfigEntity struct {
+	DeviceManagementPlatformAPIClientConfig *ClientConfigEntity `yaml:"device_management_platform_api"`
+}
+
 type ConfigEntity struct {
 	LogConfig     *LogConfigEntity     `yaml:"log"`
 	DBConfig      *DBConfigEntity      `yaml:"db"`
+	ClientsConfig *ClientsConfigEntity `yaml:"clients"`
 	ServerConfig  *ServerConfigEntity  `yaml:"server"`
 	TraceConfig   *TraceConfigEntity   `yaml:"trace"`
 	OSSConfig     *OSSConfigEntity     `yaml:"oss"`

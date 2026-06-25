@@ -9,11 +9,15 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/component"
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/config"
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/entity"
+	devicemanagementplatformapi "github.com/KitHub/protocols/devicemanagementplatformapi"
 	"github.com/RoaringBitmap/roaring/roaring64"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const bitmapLocalFileNameInfix = "bitmap"
@@ -30,10 +34,12 @@ type packageWithBitmapTuple struct {
 }
 
 type ComputeLogic struct {
-	computeConfig *config.ComputeConfigEntity
-	cronComponent *component.CronComponent
-	packageLogic  *PackageLogic
-	packagesMap   *component.SyncMap[string, *packageWithBitmapTuple] // map[string]*packageWithBitmapTuple // key = packageEntity.OriginId
+	computeConfig                           *config.ComputeConfigEntity
+	cronComponent                           *component.CronComponent
+	packageLogic                            *PackageLogic
+	packagesMap                             *component.SyncMap[string, *packageWithBitmapTuple] // map[string]*packageWithBitmapTuple // key = packageEntity.OriginId
+	deviceManagementPlatformAPIClientConfig *config.ClientConfigEntity
+	deviceManagementPlatformAPIClient       devicemanagementplatformapi.DeviceManagementPlatformAPIClient
 }
 
 type removeUselessBitmapLocalFileCronTask struct {
@@ -57,7 +63,7 @@ func (t *removeUselessBitmapLocalFileCronTask) GetName() string {
 	return removeUselessBitmapLocalFileCronTaskName
 }
 
-func NewComputeLogic(ctx context.Context, computeConfig *config.ComputeConfigEntity, cronComponent *component.CronComponent, packageLogic *PackageLogic, ossClient component.OSSComponent) (*ComputeLogic, error) {
+func NewComputeLogic(ctx context.Context, computeConfig *config.ComputeConfigEntity, deviceManagementPlatformAPIClientConfig *config.ClientConfigEntity, cronComponent *component.CronComponent, packageLogic *PackageLogic, ossClient component.OSSComponent) (*ComputeLogic, error) {
 	var err error = nil
 	onceForComputeLogicInstance.Do(func() {
 		err = os.MkdirAll(computeConfig.LocalBitmapDir, 0755)
@@ -66,13 +72,6 @@ func NewComputeLogic(ctx context.Context, computeConfig *config.ComputeConfigEnt
 		}
 
 		packagesMap := &component.SyncMap[string, *packageWithBitmapTuple]{} // make(map[string]*packageWithBitmapTuple)
-
-		computeLogicInstance = &ComputeLogic{
-			cronComponent: cronComponent,
-			computeConfig: computeConfig,
-			packageLogic:  packageLogic,
-			packagesMap:   packagesMap,
-		}
 
 		cronTask := &removeUselessBitmapLocalFileCronTask{
 			packagesMap:        packagesMap,
@@ -83,9 +82,36 @@ func NewComputeLogic(ctx context.Context, computeConfig *config.ComputeConfigEnt
 		if err != nil {
 			slog.ErrorContext(ctx, "register cron task failed", slog.String("taskName", cronTask.GetName()), slog.Any("error", err))
 		}
+
+		// create client to visit DeviceManagementPlatformAPI
+		conn, err := grpc.NewClient(deviceManagementPlatformAPIClientConfig.Addr,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithConnectParams(grpc.ConnectParams{
+				MinConnectTimeout: time.Duration(deviceManagementPlatformAPIClientConfig.TimemoutInMilliSeconds) * time.Millisecond,
+			}))
+		if err != nil {
+			slog.ErrorContext(ctx, "create DeviceManagementPlatformAPI client failed", slog.Any("clientConfig", deviceManagementPlatformAPIClientConfig), slog.Any("error", err))
+		}
+
+		deviceManagementPlatformAPIClient := devicemanagementplatformapi.NewDeviceManagementPlatformAPIClient(conn)
+
+		computeLogicInstance = &ComputeLogic{
+			cronComponent:                           cronComponent,
+			computeConfig:                           computeConfig,
+			packageLogic:                            packageLogic,
+			packagesMap:                             packagesMap,
+			deviceManagementPlatformAPIClientConfig: deviceManagementPlatformAPIClientConfig,
+			deviceManagementPlatformAPIClient:       deviceManagementPlatformAPIClient,
+		}
+
 	})
+
 	return computeLogicInstance, err
 }
+
+// compute packages methods =======================================================
+
+// load packages methods =======================================================
 
 func (logic *ComputeLogic) ReloadPackage(ctx context.Context, packageEntity *entity.PackageEntity, forceReloadFromOSS bool) error {
 	slog.InfoContext(ctx, "start reloading package", slog.Any("packageEntity", packageEntity))
@@ -142,9 +168,17 @@ func (logic *ComputeLogic) LoadAllPackages(ctx context.Context, forceReload bool
 	return nil
 }
 
-func idMappingContentToId(ctx context.Context, content string) (int64, error) {
-	// todo, add implmentation
-	panic("not implmented")
+// private methods =============================================================================
+
+func idMappingContentToId(ctx context.Context, deviceManagementPlatformAPIClient devicemanagementplatformapi.DeviceManagementPlatformAPIClient, content string) (int64, error) {
+	rsp, err := deviceManagementPlatformAPIClient.QueryDeviceByNo(ctx, &devicemanagementplatformapi.QueryDeviceByNoRequest{
+		DeviceNo: content,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "idMappingContentToId failed", slog.String("content", content), slog.Any("error", err))
+		return 0, err
+	}
+	return rsp.GetData().GetDeviceInfo().DeviceId, nil
 }
 
 func serializeBitMapToLocalFile(ctx context.Context, bitmapLocalFileDir string, packageEntity *entity.PackageEntity, bitmap *roaring64.Bitmap) (localFilePath string, bytesCount int64, err error) {
