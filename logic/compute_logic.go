@@ -138,7 +138,7 @@ func (logic *ComputeLogic) ReloadPackage(ctx context.Context, packageEntity *ent
 	return nil
 }
 
-func (logic *ComputeLogic) LoadAllPackages(ctx context.Context, forceReload bool) error {
+func (logic *ComputeLogic) ReloadAllPackages(ctx context.Context, forceReload bool) error {
 	var tmpId int64 = -1
 	var limit int32 = 10
 	var packages []*entity.PackageEntity = nil

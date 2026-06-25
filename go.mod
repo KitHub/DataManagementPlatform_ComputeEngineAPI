@@ -3,9 +3,11 @@ module github.com/KitHub/DataManagementPlatform_ComputeEngineAPI
 go 1.26.2
 
 require (
-	github.com/KitHub/protocols v0.1.27
+	github.com/KitHub/protocols v0.1.29
+	github.com/RoaringBitmap/roaring v1.9.4
 	github.com/aliyun/alibabacloud-oss-go-sdk-v2 v1.5.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.73
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
 	go.yaml.in/yaml/v3 v3.0.4
@@ -17,8 +19,6 @@ require (
 )
 
 require (
-	github.com/RoaringBitmap/roaring v1.9.4 // indirect
-	github.com/RoaringBitmap/roaring/v2 v2.18.2 // indirect
 	github.com/bits-and-blooms/bitset v1.24.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clbanning/mxj v1.8.4 // indirect
@@ -33,7 +33,6 @@ require (
 	github.com/mozillazg/go-httpheader v0.2.1 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/mwitkow/go-proto-validators v0.3.2 // indirect
-	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/syndtr/goleveldb v1.0.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.44.0 // indirect

@@ -24,6 +24,7 @@ type ServiceContext struct {
 	ShutdownComponent    *component.ShutdownComponent
 	PackageDAO           *dao.PackageDAO
 	PackageLogic         *logic.PackageLogic
+	ComputeLogic         *logic.ComputeLogic
 	ComputeEngineService *service.ComputeEngineService
 }
 
@@ -59,13 +60,22 @@ func InitServiceContext(ctx context.Context, configEntity *config.ConfigEntity) 
 			return
 		}
 		packageLogic := logic.NewPackageLogic(ctx, dbEngine, packageDAO, ossClient, initComponent)
-		computeEngineService := service.NewComputeEngineService(packageLogic)
+
+		computeLogic, innerErr := logic.NewComputeLogic(ctx, configEntity.ComputeConfig, configEntity.ClientsConfig.DeviceManagementPlatformAPIClientConfig, cronComponent, packageLogic, ossClient)
+		if innerErr != nil {
+			slog.ErrorContext(ctx, "init computeLogic failed", slog.Any("error", innerErr))
+			err = innerErr
+			return
+		}
+
+		computeEngineService := service.NewComputeEngineService(ctx, packageLogic, computeLogic)
 
 		gServiceCtx = &ServiceContext{
 			ShutdownComponent:    shutdownComponent,
 			InitComponent:        initComponent,
 			PackageDAO:           packageDAO,
 			PackageLogic:         packageLogic,
+			ComputeLogic:         computeLogic,
 			ComputeEngineService: computeEngineService,
 			Logger:               logger,
 			DBEngine:             dbEngine,

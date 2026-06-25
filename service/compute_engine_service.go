@@ -20,6 +20,54 @@ var (
 type ComputeEngineService struct {
 	computeEngineAPIProtocol.UnimplementedComputeEngineAPIServer
 	packageLogic *logic.PackageLogic
+	computeLogic *logic.ComputeLogic
+}
+
+func (c *ComputeEngineService) ReloadPackage(ctx context.Context, req *computeEngineAPIProtocol.ReloadPackageRequest) (rsp *computeEngineAPIProtocol.ReloadPackageResponse, err error) {
+	// improve performance, reload in other routine
+	slog.InfoContext(ctx, "ReloadPackage", slog.Any("req", req))
+
+	packageEntity, err := c.packageLogic.QueryPackageByOriginId(ctx, req.GetOriginId())
+	if err != nil {
+		slog.ErrorContext(ctx, "ReloadPackage failed, querying package failed", slog.String("packageOriginId", req.GetOriginId()), slog.Any("error", err))
+		return &computeEngineAPIProtocol.ReloadPackageResponse{
+			ErrCode: 1,
+			ErrMsg:  "server error",
+		}, err
+	}
+
+	err = c.computeLogic.ReloadPackage(ctx, packageEntity, true)
+	if err != nil {
+		slog.ErrorContext(ctx, "ReloadPackage failed", slog.String("packageOriginId", req.GetOriginId()), slog.Any("error", err))
+		return &computeEngineAPIProtocol.ReloadPackageResponse{
+			ErrCode: 1,
+			ErrMsg:  "server error",
+		}, err
+	}
+
+	slog.InfoContext(ctx, "ReloadPackage done")
+	return &computeEngineAPIProtocol.ReloadPackageResponse{
+		ErrCode: 0,
+		ErrMsg:  "",
+	}, nil
+}
+
+func (c *ComputeEngineService) ReloadAllPackage(ctx context.Context, req *computeEngineAPIProtocol.ReloadAllPackagesRequest) (rsp *computeEngineAPIProtocol.ReloadAllPackagesResponse, err error) {
+	// improve performance, reload in other routine
+	slog.InfoContext(ctx, "ReloadAllPackage", slog.Any("req", req))
+	err = c.computeLogic.ReloadAllPackages(ctx, true)
+	if err != nil {
+		slog.ErrorContext(ctx, "ReloadAllPackage failed", slog.Any("error", err))
+		return &computeEngineAPIProtocol.ReloadAllPackagesResponse{
+			ErrCode: 1,
+			ErrMsg:  "server error",
+		}, err
+	}
+	slog.InfoContext(ctx, "ReloadAllPackage done")
+	return &computeEngineAPIProtocol.ReloadAllPackagesResponse{
+		ErrCode: 0,
+		ErrMsg:  "",
+	}, nil
 }
 
 // UploadPackage implements [DataManagementPlatform_ComputeEngineAPI.ComputeEngineAPIServer].
@@ -192,7 +240,7 @@ func (c *ComputeEngineService) RegisterPackage(ctx context.Context, req *compute
 	return rsp, nil
 }
 
-func NewComputeEngineService(packageLogic *logic.PackageLogic) *ComputeEngineService {
+func NewComputeEngineService(ctx context.Context, packageLogic *logic.PackageLogic, computeLogic *logic.ComputeLogic) *ComputeEngineService {
 	computeEngineServiceOnce.Do(func() {
 		computeEngineServiceInstance = &ComputeEngineService{
 			packageLogic: packageLogic,
