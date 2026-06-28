@@ -23,6 +23,37 @@ type ComputeEngineService struct {
 	computeLogic *logic.ComputeLogic
 }
 
+func (c *ComputeEngineService) ComputePackagesCombo(ctx context.Context, req *computeEngineAPIProtocol.ComputePackageComboRequest) (rsp *computeEngineAPIProtocol.ComputePackageComboResponse, err error) {
+	slog.InfoContext(ctx, "computeCombo", slog.Any("req", req))
+
+	err = req.Validate()
+	if err != nil {
+		slog.ErrorContext(ctx, "ComputePackagesCombo request validate failed", slog.Any("req", req), slog.Any("error", err))
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	root, err := convertComputeComboReqToSetOperationsRoot(ctx, req)
+	if err != nil {
+		slog.ErrorContext(ctx, "convertComputeComboReqToSetOperationsRoot failed", slog.Any("req", req), slog.Any("error", err))
+		return nil, status.Errorf(codes.Internal, "server error")
+	}
+
+	resultOriginId, err := c.computeLogic.ComputeCombo(ctx, root)
+	if err != nil {
+		slog.InfoContext(ctx, "compute packages combo failed", slog.Any("setOperationNodes", root), slog.Any("error", err))
+		return nil, status.Errorf(codes.Internal, "server error")
+	}
+	rsp = &computeEngineAPIProtocol.ComputePackageComboResponse{
+		ErrCode: 0,
+		ErrMsg:  "",
+		Data: &computeEngineAPIProtocol.ComputePackageComboResponseData{
+			PackageOriginId: resultOriginId,
+		},
+	}
+	slog.InfoContext(ctx, "computeCombo done", slog.Any("req", req), slog.String("resultOriginId", resultOriginId))
+	return rsp, nil
+}
+
 func (c *ComputeEngineService) ReloadPackage(ctx context.Context, req *computeEngineAPIProtocol.ReloadPackageRequest) (rsp *computeEngineAPIProtocol.ReloadPackageResponse, err error) {
 	// improve performance, reload in other routine
 	slog.InfoContext(ctx, "ReloadPackage", slog.Any("req", req))
@@ -264,4 +295,8 @@ func convertPackageEntityToBasicPackageInfo(ctx context.Context, packageEntity *
 		RegisterTime: packageEntity.RegisterTime.UnixMilli(),
 	}
 	return packageInfo
+}
+
+func convertComputeComboReqToSetOperationsRoot(ctx context.Context, req *computeEngineAPIProtocol.ComputePackageComboRequest) (root *entity.SetOperationNode, err error) {
+	return nil, nil
 }

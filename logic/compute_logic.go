@@ -111,6 +111,11 @@ func NewComputeLogic(ctx context.Context, computeConfig *config.ComputeConfigEnt
 
 // compute packages methods =======================================================
 
+func (logic *ComputeLogic) ComputeCombo(ctx context.Context, setOperationsRoot *entity.SetOperationNode) (packageOriginId string, err error) {
+	// todo, simplify rules to reduce computation
+	return "", nil
+}
+
 // load packages methods =======================================================
 
 func (logic *ComputeLogic) ReloadPackage(ctx context.Context, packageEntity *entity.PackageEntity, forceReloadFromOSS bool) error {
