@@ -2,12 +2,15 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/entity"
 	"github.com/KitHub/DataManagementPlatform_ComputeEngineAPI/logic"
 	computeEngineAPIProtocol "github.com/KitHub/protocols/DataManagementPlatform_ComputeEngineAPI"
+	"github.com/KitHub/protocols/compute_operation"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -26,7 +29,7 @@ type ComputeEngineService struct {
 func (c *ComputeEngineService) ComputePackagesCombo(ctx context.Context, req *computeEngineAPIProtocol.ComputePackageComboRequest) (rsp *computeEngineAPIProtocol.ComputePackageComboResponse, err error) {
 	slog.InfoContext(ctx, "computeCombo", slog.Any("req", req))
 
-	err = req.Validate()
+	err = c.validateRequest(ctx, req)
 	if err != nil {
 		slog.ErrorContext(ctx, "ComputePackagesCombo request validate failed", slog.Any("req", req), slog.Any("error", err))
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -278,6 +281,62 @@ func NewComputeEngineService(ctx context.Context, packageLogic *logic.PackageLog
 		}
 	})
 	return computeEngineServiceInstance
+}
+
+func (c *ComputeEngineService) validateRequest(ctx context.Context, req *computeEngineAPIProtocol.ComputePackageComboRequest) error {
+	if err := req.Validate(); err != nil {
+		return err
+	}
+	if err := c.validateAstNode(ctx, req.GetCombo(), 8, 1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *ComputeEngineService) validateAstNode(ctx context.Context, node *compute_operation.SetCompute_Node, maxDepth int32, currentDepth int32) error {
+	if currentDepth > maxDepth {
+		return errors.New("combo layers is too deep, max depth is " + fmt.Sprintf("%s", maxDepth))
+	}
+	switch node.GetNodeType() {
+	case compute_operation.SetCompute_DATASET:
+		if node.SetKey == "" {
+			return errors.New("setKey cannot be empty for DataSet node")
+		}
+		if node.Operator != compute_operation.SetCompute_OPERATOR_UNSPECIFIED || len(node.Children) > 0 {
+			return errors.New("DataSet node should not have operator or children")
+		}
+		if ok := c.computeLogic.ValidatePackage(ctx, node.SetKey); !ok {
+			return fmt.Errorf("%w: %s", "package not found", node.SetKey)
+		}
+		return nil
+
+	case compute_operation.SetCompute_OPERATOR:
+		if node.Operator == compute_operation.SetCompute_OPERATOR_UNSPECIFIED {
+			return errors.New("operator node must have a operator")
+		}
+		if len(node.Children) == 0 {
+			return errors.New("operator node must have children")
+		}
+		switch node.Operator {
+		case compute_operation.SetCompute_INTERSECT, compute_operation.SetCompute_UNION:
+			if len(node.Children) < 2 {
+				return fmt.Errorf("%w: union/intersect must have at least 2 children", "ErrChildCountIllegal")
+			}
+		case compute_operation.SetCompute_DIFF:
+			if len(node.Children) != 2 {
+				return fmt.Errorf("%w: diff must have exactly 2 children", "ErrChildCountIllegal")
+			}
+		}
+		for _, child := range node.Children {
+			if err := c.validateAstNode(ctx, child, maxDepth, currentDepth+1); err != nil {
+				return err
+			}
+		}
+		return nil
+
+	default:
+		return errors.New("not supported node type: " + fmt.Sprintf("%s", node.GetNodeType()))
+	}
 }
 
 func convertPackageEntityToBasicPackageInfo(ctx context.Context, packageEntity *entity.PackageEntity) *computeEngineAPIProtocol.BasicPackageInfo {

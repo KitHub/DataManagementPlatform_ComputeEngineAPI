@@ -15,3 +15,7 @@ type PackageEntity struct {
 	CreateTime   time.Time `json:"create_time" xorm:"create_time"`
 	UpdateTime   time.Time `json:"update_time" xorm:"update_time"`
 }
+
+func (e *PackageEntity) TableName() string {
+	return "package"
+}

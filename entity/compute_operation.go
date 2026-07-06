@@ -3,13 +3,15 @@ package entity
 type SetOperator int32
 
 const (
-	SetOperatorAnd  SetOperator = 0
-	SetOperatorOr   SetOperator = 1
-	SetOperatorDiff SetOperator = 2
+	SetOperatorUnspecified SetOperator = 0
+	SetOperatorUnion       SetOperator = 1
+	SetOperatorIntersect   SetOperator = 2
+	SetOperatorDiff        SetOperator = 3
 )
 
 type SetOperationNode struct {
 	SetOperator SetOperator
+	Data        string
 	LeftNode    *SetOperationNode
 	RightNode   *SetOperationNode
 }

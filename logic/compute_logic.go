@@ -120,7 +120,6 @@ func (logic *ComputeLogic) ComputeCombo(ctx context.Context, setOperationsRoot *
 
 func (logic *ComputeLogic) ReloadPackage(ctx context.Context, packageEntity *entity.PackageEntity, forceReloadFromOSS bool) error {
 	slog.InfoContext(ctx, "start reloading package", slog.Any("packageEntity", packageEntity))
-
 	bitmap, err := loadPackage(ctx, packageEntity, logic.computeConfig.LocalBitmapDir, logic.deviceManagementPlatformAPIClient, logic.packageLogic.ossClient, forceReloadFromOSS)
 	if err != nil {
 		slog.ErrorContext(ctx, "force reloading package failed", slog.String("packageOriginId", packageEntity.OriginId), slog.Any("error", err))
@@ -162,15 +161,30 @@ func (logic *ComputeLogic) ReloadAllPackages(ctx context.Context, forceReload bo
 		packages = append(packages, tmpPackages...)
 	}
 
+	currentPackageMapKeys := logic.packagesMap.Keys()
+	newLoadedPackages := make(map[string]bool)
 	for _, tmpPackage := range packages {
 		err := logic.ReloadPackage(ctx, tmpPackage, forceReload)
 		if err != nil {
 			return err
 		}
+		newLoadedPackages[tmpPackage.OriginId] = true
+	}
+
+	// remove useless packages from packagesMap
+	for _, key := range currentPackageMapKeys {
+		if !newLoadedPackages[key] {
+			logic.packagesMap.Delete(key)
+		}
 	}
 
 	slog.InfoContext(ctx, "load packages to bitmap done")
 	return nil
+}
+
+func (logic *ComputeLogic) ValidatePackage(ctx context.Context, packageOriginId string) bool {
+	_, ok := logic.packagesMap.Load(packageOriginId)
+	return ok
 }
 
 // private methods =============================================================================

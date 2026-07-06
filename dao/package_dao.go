@@ -67,7 +67,7 @@ func (dao *PackageDAO) QueryPackageByOriginId(ctx context.Context,
 	packageEntity := &entity.PackageEntity{}
 	has, err := session.Where("origin_id = ?", originId).Get(packageEntity)
 	if err != nil {
-		slog.ErrorContext(ctx, "query package by id failed", slog.String("origin_id", originId), slog.Any("error", err))
+		slog.ErrorContext(ctx, "query package by name failed", slog.String("origin_id", originId), slog.Any("error", err))
 		return nil, err
 	}
 	if !has {

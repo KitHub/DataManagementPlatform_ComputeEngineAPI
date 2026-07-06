@@ -18,3 +18,16 @@ func (s *SyncMap[K, V]) Load(k K) (V, bool) {
 	}
 	return val.(V), true
 }
+
+func (s *SyncMap[K, V]) Delete(k K) {
+	s.m.Delete(k)
+}
+
+func (s *SyncMap[K, V]) Keys() []K {
+	var keys []K
+	s.m.Range(func(key, value any) bool {
+		keys = append(keys, key.(K))
+		return true
+	})
+	return keys
+}
