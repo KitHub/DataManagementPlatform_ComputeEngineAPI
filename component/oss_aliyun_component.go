@@ -11,6 +11,10 @@ import (
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss/credentials"
 )
 
+const (
+	PlatformAliyunOSS = "aliyun_oss"
+)
+
 var aliyunOSSComponentInstance *AliyunOSSComponent
 var onceForAliyunOSSComponentInstance sync.Once = sync.Once{}
 
@@ -29,6 +33,10 @@ func NewAliyunOSSComponent(ctx context.Context, accessKeyID string, accessKeySec
 		}
 	})
 	return aliyunOSSComponentInstance
+}
+
+func (a *AliyunOSSComponent) GetPlatform() string {
+	return PlatformAliyunOSS
 }
 
 func (a *AliyunOSSComponent) PutDataFromMemory(ctx context.Context, bucket string, key string, content []byte) error {

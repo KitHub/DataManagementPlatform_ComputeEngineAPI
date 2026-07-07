@@ -54,6 +54,7 @@ type TencentCSSConfigEntity struct {
 
 type OSSConfigEntity struct {
 	OSSClientType    string                  `yaml:"type"`
+	BucketName       string                  `yaml:"bucket_name"`
 	AliyunOSSConfig  *AliyunOSSConfigEntity  `yaml:"aliyun"`
 	TencentCSSConfig *TencentCSSConfigEntity `yaml:"tencent"`
 }

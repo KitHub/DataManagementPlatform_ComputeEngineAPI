@@ -41,7 +41,7 @@ func NewPackageLogic(ctx context.Context, dbEngine *xorm.Engine,
 	return packageLogicInstance
 }
 
-func (logic *PackageLogic) UploadPackage(ctx context.Context, bucketName string, keyName string, content []byte) error {
+func (logic *PackageLogic) UploadPackageFromMemory(ctx context.Context, bucketName string, keyName string, content []byte) error {
 	slog.InfoContext(ctx, "upload file", slog.String("bucketName", bucketName), slog.String("keyName", keyName))
 	err := logic.ossClient.PutDataFromMemory(ctx, bucketName, keyName, content)
 	if err != nil {
@@ -52,10 +52,22 @@ func (logic *PackageLogic) UploadPackage(ctx context.Context, bucketName string,
 	return nil
 }
 
-func (logic *PackageLogic) InsertPackage(ctx context.Context, originId string, comment string, platform string, bucketName string, keyName string) (packageEntity *entity.PackageEntity, err error) {
+func (logic *PackageLogic) UploadPackageFromLocalFile(ctx context.Context, bucketName string, keyName string, localFilePath string) error {
+	slog.InfoContext(ctx, "upload file", slog.String("bucketName", bucketName), slog.String("keyName", keyName), slog.String("localFilePath", localFilePath))
+	err := logic.ossClient.PutDataFromFile(ctx, bucketName, keyName, localFilePath)
+	if err != nil {
+		slog.ErrorContext(ctx, "upload file failed", slog.String("bucketName", bucketName), slog.String("keyName", keyName), slog.String("localFilePath", localFilePath))
+		return err
+	}
+	slog.InfoContext(ctx, "upload file done", slog.String("bucketName", bucketName), slog.String("keyName", keyName))
+	return nil
+}
+
+func (logic *PackageLogic) InsertPackage(ctx context.Context, originId string, displayName string, comment string, platform string, bucketName string, keyName string) (packageEntity *entity.PackageEntity, err error) {
 	now := time.Now()
 	packageEntity = &entity.PackageEntity{
 		OriginId:     originId,
+		DisplayName:  displayName,
 		Comment:      comment,
 		BucketName:   bucketName,
 		KeyName:      keyName,

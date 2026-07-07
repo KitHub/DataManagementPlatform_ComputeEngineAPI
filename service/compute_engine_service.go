@@ -35,7 +35,7 @@ func (c *ComputeEngineService) ComputePackagesCombo(ctx context.Context, req *co
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	root, err := convertComputeComboReqToSetOperationsRoot(ctx, req)
+	root, err := convertComputeComboReqToSetOperationsRoot(ctx, req.GetCombo())
 	if err != nil {
 		slog.ErrorContext(ctx, "convertComputeComboReqToSetOperationsRoot failed", slog.Any("req", req), slog.Any("error", err))
 		return nil, status.Errorf(codes.Internal, "server error")
@@ -126,13 +126,13 @@ func (c *ComputeEngineService) UploadPackage(ctx context.Context, req *computeEn
 		return nil, status.Error(codes.AlreadyExists, errMsg)
 	}
 
-	err = c.packageLogic.UploadPackage(ctx, req.GetBucketName(), req.GetKeyName(), req.GetPackageFile())
+	err = c.packageLogic.UploadPackageFromMemory(ctx, req.GetBucketName(), req.GetKeyName(), req.GetPackageFile())
 	if err != nil {
 		slog.ErrorContext(ctx, "upload package failed", slog.String("bucket_name", req.GetBucketName()), slog.String("key_name", req.GetKeyName()))
 		return nil, status.Error(codes.Internal, "server error")
 	}
 
-	newPackageEntity, err := c.packageLogic.InsertPackage(ctx, req.GetOriginId(), req.GetComment(), req.GetPlatform(), req.GetBucketName(), req.GetKeyName())
+	newPackageEntity, err := c.packageLogic.InsertPackage(ctx, req.GetOriginId(), req.GetDisplayName(), req.GetComment(), req.GetPlatform(), req.GetBucketName(), req.GetKeyName())
 	if err != nil {
 		slog.ErrorContext(ctx, "insert package failed", slog.Any("req", req))
 		return nil, status.Error(codes.Internal, "server error")
@@ -249,14 +249,15 @@ func (c *ComputeEngineService) RegisterPackage(ctx context.Context, req *compute
 	}
 
 	packageEntity := &entity.PackageEntity{
-		OriginId:   req.GetOriginId(),
-		Comment:    req.GetComment(),
-		Platform:   req.GetPlatform(),
-		BucketName: req.GetBucketName(),
-		KeyName:    req.GetKeyName(),
+		OriginId:    req.GetOriginId(),
+		DisplayName: req.GetDisplayName(),
+		Comment:     req.GetComment(),
+		Platform:    req.GetPlatform(),
+		BucketName:  req.GetBucketName(),
+		KeyName:     req.GetKeyName(),
 	}
 
-	packageEntity, err = c.packageLogic.InsertPackage(ctx, packageEntity.OriginId, packageEntity.Comment, packageEntity.Platform, packageEntity.BucketName, packageEntity.KeyName)
+	packageEntity, err = c.packageLogic.InsertPackage(ctx, packageEntity.OriginId, packageEntity.DisplayName, packageEntity.Comment, packageEntity.Platform, packageEntity.BucketName, packageEntity.KeyName)
 	if err != nil {
 		slog.ErrorContext(ctx, "insert package info failed", slog.Any("packageEntity", packageEntity), slog.Any("error", err))
 		return nil, status.Errorf(codes.Internal, "server error")
@@ -295,7 +296,7 @@ func (c *ComputeEngineService) validateRequest(ctx context.Context, req *compute
 
 func (c *ComputeEngineService) validateAstNode(ctx context.Context, node *compute_operation.SetCompute_Node, maxDepth int32, currentDepth int32) error {
 	if currentDepth > maxDepth {
-		return errors.New("combo layers is too deep, max depth is " + fmt.Sprintf("%s", maxDepth))
+		return errors.New("combo layers is too deep, max depth is " + fmt.Sprintf("%d", maxDepth))
 	}
 	switch node.GetNodeType() {
 	case compute_operation.SetCompute_DATASET:
@@ -306,7 +307,7 @@ func (c *ComputeEngineService) validateAstNode(ctx context.Context, node *comput
 			return errors.New("DataSet node should not have operator or children")
 		}
 		if ok := c.computeLogic.ValidatePackage(ctx, node.SetKey); !ok {
-			return fmt.Errorf("%w: %s", "package not found", node.SetKey)
+			return fmt.Errorf("%s: %s", "package not found", node.SetKey)
 		}
 		return nil
 
@@ -320,11 +321,11 @@ func (c *ComputeEngineService) validateAstNode(ctx context.Context, node *comput
 		switch node.Operator {
 		case compute_operation.SetCompute_INTERSECT, compute_operation.SetCompute_UNION:
 			if len(node.Children) < 2 {
-				return fmt.Errorf("%w: union/intersect must have at least 2 children", "ErrChildCountIllegal")
+				return fmt.Errorf("%s: union/intersect must have at least 2 children", "ErrChildCountIllegal")
 			}
 		case compute_operation.SetCompute_DIFF:
 			if len(node.Children) != 2 {
-				return fmt.Errorf("%w: diff must have exactly 2 children", "ErrChildCountIllegal")
+				return fmt.Errorf("%s: diff must have exactly 2 children", "ErrChildCountIllegal")
 			}
 		}
 		for _, child := range node.Children {
@@ -335,7 +336,7 @@ func (c *ComputeEngineService) validateAstNode(ctx context.Context, node *comput
 		return nil
 
 	default:
-		return errors.New("not supported node type: " + fmt.Sprintf("%s", node.GetNodeType()))
+		return errors.New("not supported node type: " + node.GetNodeType().String())
 	}
 }
 
@@ -356,6 +357,38 @@ func convertPackageEntityToBasicPackageInfo(ctx context.Context, packageEntity *
 	return packageInfo
 }
 
-func convertComputeComboReqToSetOperationsRoot(ctx context.Context, req *computeEngineAPIProtocol.ComputePackageComboRequest) (root *entity.SetOperationNode, err error) {
-	return nil, nil
+func convertComputeComboReqToSetOperationsRoot(ctx context.Context, combo *compute_operation.SetCompute_Node) (root *entity.SetOperationNode, err error) {
+	comboStack := []*compute_operation.SetCompute_Node{combo}
+	mapping := make(map[*compute_operation.SetCompute_Node]*entity.SetOperationNode)
+	for len(comboStack) > 0 {
+		currentComboNode := comboStack[len(comboStack)-1]
+		comboStack = comboStack[:len(comboStack)-1]
+
+		newOperationNode := &entity.SetOperationNode{
+			Data:        currentComboNode.SetKey,
+			SetOperator: entity.SetOperator(currentComboNode.Operator),
+		}
+
+		mapping[currentComboNode] = newOperationNode
+
+		for _, child := range currentComboNode.Children {
+			comboStack = append(comboStack, child)
+		}
+	}
+
+	comboStack = []*compute_operation.SetCompute_Node{combo}
+	for len(comboStack) > 0 {
+		currentComboNode := comboStack[len(comboStack)-1]
+		comboStack = comboStack[:len(comboStack)-1]
+
+		newOperationNode := mapping[currentComboNode]
+		newOperationNode.Children = make([]*entity.SetOperationNode, 0, len(currentComboNode.Children))
+		for _, child := range currentComboNode.Children {
+			newOperationNode.Children = append(newOperationNode.Children, mapping[child])
+			comboStack = append(comboStack, child)
+		}
+	}
+
+	root = mapping[combo]
+	return root, nil
 }

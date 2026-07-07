@@ -13,11 +13,19 @@ import (
 	"github.com/tencentyun/cos-go-sdk-v5"
 )
 
+const (
+	PlatformAliyunCOS = "tencent_cos"
+)
+
 var tencentCOSComponentInstance *TencentCOSComponent
 var onceForTencentCOSComponentInstance sync.Once = sync.Once{}
 
 type TencentCOSComponent struct {
 	cosClient *cos.Client
+}
+
+func (a *TencentCOSComponent) GetPlatform() string {
+	return PlatformAliyunCOS
 }
 
 // GetDataToFile implements [OSSComponent].

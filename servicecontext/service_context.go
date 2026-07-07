@@ -61,7 +61,7 @@ func InitServiceContext(ctx context.Context, configEntity *config.ConfigEntity) 
 		}
 		packageLogic := logic.NewPackageLogic(ctx, dbEngine, packageDAO, ossClient, initComponent)
 
-		computeLogic, innerErr := logic.NewComputeLogic(ctx, configEntity.ComputeConfig, configEntity.ClientsConfig.DeviceManagementPlatformAPIClientConfig, cronComponent, packageLogic, ossClient)
+		computeLogic, innerErr := logic.NewComputeLogic(ctx, configEntity.ComputeConfig, configEntity.OSSConfig, configEntity.ClientsConfig.DeviceManagementPlatformAPIClientConfig, cronComponent, packageLogic, ossClient)
 		if innerErr != nil {
 			slog.ErrorContext(ctx, "init computeLogic failed", slog.Any("error", innerErr))
 			err = innerErr

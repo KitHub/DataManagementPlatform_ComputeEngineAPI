@@ -35,22 +35,23 @@ type packageWithBitmapTuple struct {
 
 type ComputeLogic struct {
 	computeConfig                           *config.ComputeConfigEntity
+	ossConfig                               *config.OSSConfigEntity
 	cronComponent                           *component.CronComponent
 	packageLogic                            *PackageLogic
-	packagesMap                             *component.SyncMap[string, *packageWithBitmapTuple] // map[string]*packageWithBitmapTuple // key = packageEntity.OriginId
+	packageBitmaps                          *component.SyncMap[string, *packageWithBitmapTuple] // map[string]*packageWithBitmapTuple // key = packageEntity.OriginId
 	deviceManagementPlatformAPIClientConfig *config.ClientConfigEntity
 	deviceManagementPlatformAPIClient       devicemanagementplatformapi.DeviceManagementPlatformAPIClient
 }
 
 type removeUselessBitmapLocalFileCronTask struct {
-	packagesMap        *component.SyncMap[string, *packageWithBitmapTuple]
+	packageBitmaps     *component.SyncMap[string, *packageWithBitmapTuple]
 	bitmapLocalFileDir string
 }
 
 func (t *removeUselessBitmapLocalFileCronTask) Run() {
 	ctx := context.Background()
 	slog.InfoContext(ctx, "begin task, "+removeUselessBitmapLocalFileCronTaskName)
-	err := removeUselessBitmapLocalFile(ctx, t.packagesMap, t.bitmapLocalFileDir)
+	err := removeUselessBitmapLocalFile(ctx, t.packageBitmaps, t.bitmapLocalFileDir)
 	if err != nil {
 		slog.ErrorContext(ctx, "task failed"+removeUselessBitmapLocalFileCronTaskName, slog.Any("error", err))
 	}
@@ -63,7 +64,7 @@ func (t *removeUselessBitmapLocalFileCronTask) GetName() string {
 	return removeUselessBitmapLocalFileCronTaskName
 }
 
-func NewComputeLogic(ctx context.Context, computeConfig *config.ComputeConfigEntity, deviceManagementPlatformAPIClientConfig *config.ClientConfigEntity, cronComponent *component.CronComponent, packageLogic *PackageLogic, ossClient component.OSSComponent) (*ComputeLogic, error) {
+func NewComputeLogic(ctx context.Context, computeConfig *config.ComputeConfigEntity, ossConfig *config.OSSConfigEntity, deviceManagementPlatformAPIClientConfig *config.ClientConfigEntity, cronComponent *component.CronComponent, packageLogic *PackageLogic, ossClient component.OSSComponent) (*ComputeLogic, error) {
 	var err error = nil
 	onceForComputeLogicInstance.Do(func() {
 		err = os.MkdirAll(computeConfig.LocalBitmapDir, 0755)
@@ -71,10 +72,10 @@ func NewComputeLogic(ctx context.Context, computeConfig *config.ComputeConfigEnt
 			slog.ErrorContext(ctx, "create local bitmap dir failed", slog.String("localBitMapDir", computeConfig.LocalBitmapDir), slog.Any("error", err))
 		}
 
-		packagesMap := &component.SyncMap[string, *packageWithBitmapTuple]{} // make(map[string]*packageWithBitmapTuple)
+		packageBitmaps := &component.SyncMap[string, *packageWithBitmapTuple]{} // make(map[string]*packageWithBitmapTuple)
 
 		cronTask := &removeUselessBitmapLocalFileCronTask{
-			packagesMap:        packagesMap,
+			packageBitmaps:     packageBitmaps,
 			bitmapLocalFileDir: computeConfig.LocalBitmapDir,
 		}
 
@@ -98,8 +99,9 @@ func NewComputeLogic(ctx context.Context, computeConfig *config.ComputeConfigEnt
 		computeLogicInstance = &ComputeLogic{
 			cronComponent:                           cronComponent,
 			computeConfig:                           computeConfig,
+			ossConfig:                               ossConfig,
 			packageLogic:                            packageLogic,
-			packagesMap:                             packagesMap,
+			packageBitmaps:                          packageBitmaps,
 			deviceManagementPlatformAPIClientConfig: deviceManagementPlatformAPIClientConfig,
 			deviceManagementPlatformAPIClient:       deviceManagementPlatformAPIClient,
 		}
@@ -111,9 +113,51 @@ func NewComputeLogic(ctx context.Context, computeConfig *config.ComputeConfigEnt
 
 // compute packages methods =======================================================
 
-func (logic *ComputeLogic) ComputeCombo(ctx context.Context, setOperationsRoot *entity.SetOperationNode) (packageOriginId string, err error) {
+func (logic *ComputeLogic) ComputeCombo(ctx context.Context, setOperationsNode *entity.SetOperationNode) (packageOriginId string, err error) {
 	// todo, simplify rules to reduce computation
-	return "", nil
+
+	resultBitmap, err := computeComboWithBitmap(ctx, logic.packageBitmaps, setOperationsNode)
+	if err != nil {
+		slog.ErrorContext(ctx, "computeComboWithBitmap failed", slog.Any("setOperationsNode", setOperationsNode), slog.Any("error", err))
+		return "", err
+	}
+
+	// create a new package entity for the result
+	now := time.Now()
+	originId := "gen_" + now.Format("20060102150405") + "_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	bucketName := logic.ossConfig.BucketName
+	keyName := originId
+
+	// store package entity to db
+	packageEntity, err := logic.packageLogic.InsertPackage(ctx, originId, setOperationsNode.String(), originId, logic.packageLogic.ossClient.GetPlatform(), logic.ossConfig.BucketName, originId)
+	if err != nil {
+		slog.ErrorContext(ctx, "insert package failed", slog.Any("error", err))
+		return "", err
+	}
+
+	// store bitmap to local file
+	bitmapLocalFilePath, _, err := serializeBitMapToLocalFile(ctx, logic.computeConfig.LocalBitmapDir, packageEntity, resultBitmap)
+	if err != nil {
+		slog.ErrorContext(ctx, "serialize bitmap to local file failed", slog.Any("packageEntity", packageEntity), slog.Any("error", err))
+	}
+
+	// store bitmap to oss
+	err = logic.packageLogic.UploadPackageFromLocalFile(ctx, bucketName, keyName, bitmapLocalFilePath)
+	if err != nil {
+		slog.ErrorContext(ctx, "upload bitmap to oss failed", slog.Any("bitmapLocalFilePath", bitmapLocalFilePath), slog.Any("error", err))
+		return "", err
+	}
+
+	// store bitmap to packageBitmaps
+	logic.packageBitmaps.Store(packageEntity.OriginId, &packageWithBitmapTuple{
+		packageEntity:       packageEntity,
+		bitmap:              resultBitmap,
+		bitmapLocalFilePath: bitmapLocalFilePath,
+	})
+
+	slog.InfoContext(ctx, "computeComboWithBitmap done", slog.Any("setOperationsNode", setOperationsNode), slog.Any("resultPackage", packageEntity))
+
+	return originId, nil
 }
 
 // load packages methods =======================================================
@@ -132,7 +176,7 @@ func (logic *ComputeLogic) ReloadPackage(ctx context.Context, packageEntity *ent
 		return err
 	}
 
-	logic.packagesMap.Store(packageEntity.OriginId, &packageWithBitmapTuple{
+	logic.packageBitmaps.Store(packageEntity.OriginId, &packageWithBitmapTuple{
 		packageEntity:       packageEntity,
 		bitmap:              bitmap,
 		bitmapLocalFilePath: bitmapLocalFilePath,
@@ -161,7 +205,7 @@ func (logic *ComputeLogic) ReloadAllPackages(ctx context.Context, forceReload bo
 		packages = append(packages, tmpPackages...)
 	}
 
-	currentPackageMapKeys := logic.packagesMap.Keys()
+	currentPackageMapKeys := logic.packageBitmaps.Keys()
 	newLoadedPackages := make(map[string]bool)
 	for _, tmpPackage := range packages {
 		err := logic.ReloadPackage(ctx, tmpPackage, forceReload)
@@ -171,10 +215,10 @@ func (logic *ComputeLogic) ReloadAllPackages(ctx context.Context, forceReload bo
 		newLoadedPackages[tmpPackage.OriginId] = true
 	}
 
-	// remove useless packages from packagesMap
+	// remove useless packages from packageBitmaps
 	for _, key := range currentPackageMapKeys {
 		if !newLoadedPackages[key] {
-			logic.packagesMap.Delete(key)
+			logic.packageBitmaps.Delete(key)
 		}
 	}
 
@@ -183,7 +227,7 @@ func (logic *ComputeLogic) ReloadAllPackages(ctx context.Context, forceReload bo
 }
 
 func (logic *ComputeLogic) ValidatePackage(ctx context.Context, packageOriginId string) bool {
-	_, ok := logic.packagesMap.Load(packageOriginId)
+	_, ok := logic.packageBitmaps.Load(packageOriginId)
 	return ok
 }
 
@@ -345,7 +389,7 @@ func loadPackage(ctx context.Context, targetPacakgeEntity *entity.PackageEntity,
 
 // removeUselessBitmapLocalFile, with the process running and package changed, old-versioned bitmap file stayed in `bitmapLocalFileDir`
 // iterate SyncMap, mark useful file, and remove useless ones
-func removeUselessBitmapLocalFile(ctx context.Context, packagesMap *component.SyncMap[string, *packageWithBitmapTuple], bitmapLocalFileDir string) error {
+func removeUselessBitmapLocalFile(ctx context.Context, packageBitmaps *component.SyncMap[string, *packageWithBitmapTuple], bitmapLocalFileDir string) error {
 	entries, err := os.ReadDir(bitmapLocalFileDir)
 	if err != nil {
 		slog.ErrorContext(ctx, "read dir failed", slog.String("bitmapLocalFileDir", bitmapLocalFileDir), slog.Any("error", err))
@@ -365,7 +409,7 @@ func removeUselessBitmapLocalFile(ctx context.Context, packagesMap *component.Sy
 			return err
 		}
 
-		tuple, ok := packagesMap.Load(packageOriginId)
+		tuple, ok := packageBitmaps.Load(packageOriginId)
 		if !ok {
 			filesToBeRemoved = append(filesToBeRemoved, bitmapLocalFileDir+string(os.PathSeparator)+name)
 			continue
@@ -385,4 +429,63 @@ func removeUselessBitmapLocalFile(ctx context.Context, packagesMap *component.Sy
 	}
 
 	return nil
+}
+
+func computeComboWithBitmap(ctx context.Context, packageBitmaps *component.SyncMap[string, *packageWithBitmapTuple], setOperationsNode *entity.SetOperationNode) (bitmap *roaring64.Bitmap, err error) {
+	// todo, simplify rules to reduce computation
+
+	switch setOperationsNode.NodeType {
+	case entity.SetOperatorNodeTypeDataSet:
+		tuple, ok := packageBitmaps.Load(setOperationsNode.Data)
+		if !ok {
+			errMsg := "package not found in packageBitmaps, packageOriginId: " + setOperationsNode.Data
+			slog.ErrorContext(ctx, errMsg, slog.Any("node", setOperationsNode))
+			return nil, errors.New(errMsg)
+		}
+		return tuple.bitmap, nil
+	case entity.SetOperatorNodeTypeOperator:
+		childrenBitmaps := make([]*roaring64.Bitmap, 0, len(setOperationsNode.Children))
+		for _, child := range setOperationsNode.Children {
+			childSet, err := computeComboWithBitmap(ctx, packageBitmaps, child)
+			if err != nil {
+				return nil, err
+			}
+			childrenBitmaps = append(childrenBitmaps, childSet)
+		}
+
+		switch setOperationsNode.SetOperator {
+		case entity.SetOperatorUnion:
+			return setOperationUnion(childrenBitmaps), nil
+		case entity.SetOperatorIntersect:
+			return setOperationIntersect(childrenBitmaps), nil
+		case entity.SetOperatorDiff:
+			return setOperationDiff(childrenBitmaps[0], childrenBitmaps[1]), nil
+		default:
+			errMsg := "unknown set operator: " + string(setOperationsNode.SetOperator)
+			slog.ErrorContext(ctx, errMsg, slog.Any("node", setOperationsNode))
+			return nil, errors.New(errMsg)
+		}
+	default:
+		errMsg := "unknown node type: " + string(setOperationsNode.NodeType)
+		slog.ErrorContext(ctx, errMsg, slog.Any("node", setOperationsNode))
+		return nil, errors.New(errMsg)
+	}
+}
+
+func setOperationUnion(sets []*roaring64.Bitmap) *roaring64.Bitmap {
+	return roaring64.ParOr(0, sets...) // Use ParOr for parallel union
+}
+
+func setOperationIntersect(sets []*roaring64.Bitmap) *roaring64.Bitmap {
+	retval := roaring64.New()
+	for _, set := range sets {
+		retval.And(set)
+	}
+	return retval
+}
+
+func setOperationDiff(set1 *roaring64.Bitmap, set2 *roaring64.Bitmap) *roaring64.Bitmap {
+	retval := set1.Clone()
+	retval.AndNot(set2)
+	return retval
 }
